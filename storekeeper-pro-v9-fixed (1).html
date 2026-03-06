@@ -1260,12 +1260,22 @@ function normItem(i) {
 }
 
 function normTx(t) {
+  const rawType = String(t.type || t.transactionType || '').trim().toUpperCase();
+  const typeMap = {
+    ADD: 'ADD',
+    ADD_STOCK: 'ADD_STOCK',
+    BULK_ADD: 'BULK_ADD',
+    ISSUE: 'ISSUE',
+    USE: 'USE',
+    BULK_ISSUE: 'BULK_ISSUE',
+    RETURN_TO_VENDOR: 'RETURN_TO_VENDOR'
+  };
   return {
     id:            String(t.id || ''),
     groupId:       String(t.groupId || ''),
     itemId:        String(t.itemId || ''),
     itemName:      String(t.itemName || t.itemId || ''),
-    type:          String(t.type || t.transactionType || ''),
+    type:          typeMap[rawType] || rawType,
     quantity:      Number(t.quantity) || 0,
     previousStock: Number(t.previousStock) || 0,
     newStock:      Number(t.newStock) || 0,
@@ -1275,6 +1285,20 @@ function normTx(t) {
     createdDate:   String(t.createdDate || t.date || ''),
     createdBy:     String(t.createdBy || '')
   };
+}
+
+function txKind(type) {
+  if (type === 'ADD' || type === 'ADD_STOCK' || type === 'BULK_ADD') return 'add';
+  if (type === 'RETURN_TO_VENDOR') return 'return';
+  return 'issue';
+}
+
+function getLocalDateStamp() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function normRepair(r) {
@@ -1469,7 +1493,7 @@ function renderOv() {
   if (rBadge) { rBadge.textContent = activeCnt; rBadge.style.display = activeCnt ? 'inline' : 'none'; }
 
   // Transaction KPIs
-  const todayStr  = new Date().toISOString().split('T')[0];
+  const todayStr  = getLocalDateStamp();
   const monthStr  = todayStr.slice(0, 7);
   const isIssue   = t => t.type === 'ISSUE' || t.type === 'USE' || t.type === 'BULK_ISSUE';
   const isAddT    = t => t.type === 'ADD'   || t.type === 'ADD_STOCK' || t.type === 'BULK_ADD';
@@ -1508,9 +1532,9 @@ function renderOv() {
 }
 
 function calcUsedThisMonth() {
-  const m = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const m = getLocalDateStamp().slice(0, 7); // YYYY-MM
   return DB.transactions
-    .filter(t => t.type === 'ISSUE' && String(t.transactionDate || '').startsWith(m))
+    .filter(t => txKind(t.type) === 'issue' && String(t.transactionDate || '').startsWith(m))
     .reduce((s, t) => s + t.quantity, 0);
 }
 
@@ -1686,7 +1710,7 @@ function filterTx() {
   const df   = $('txDateF').value;
   fTx = DB.transactions.filter(tx => {
     const mq = !q  || [tx.itemName, tx.itemId, tx.technician, tx.note].some(v => String(v || '').toLowerCase().includes(q));
-    const mt = !t  || tx.type === t;
+    const mt = !t  || tx.type === t || (t === 'ADD' && txKind(tx.type) === 'add') || (t === 'ISSUE' && txKind(tx.type) === 'issue');
     const md = !df || String(tx.transactionDate || '').startsWith(df);
     return mq && mt && md;
   });
@@ -1704,8 +1728,9 @@ function paintTx() {
     return;
   }
   tb.innerHTML = pg.map(t => {
-    const isAdd = t.type === 'ADD';
-    const isRet = t.type === 'RETURN_TO_VENDOR';
+    const kind  = txKind(t.type);
+    const isAdd = kind === 'add';
+    const isRet = kind === 'return';
     const cls   = isAdd ? 'tx-add' : isRet ? 'tx-ret' : 'tx-use';
     const sign  = isAdd ? '+' : '−';
     const qclr  = isAdd ? 'var(--green)' : isRet ? 'var(--purple)' : 'var(--red)';
