@@ -1,69 +1,3671 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Dashboard</title>
-    <script>
-        // Debounced Search Functionality
-        let timeout;
-        function debouncedSearch() {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                // Implement search functionality here
-            }, 300);
-        }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StoreKeeper Pro v9 — Plant Inventory & Repair Register</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+:root {
+  --bg:#07090f; --bg2:#0c1018; --bg3:#111827;
+  --surf:#111827; --surf2:#1a2335; --surf3:#1e2d45;
+  --bdr:#1e2d3d; --bdr2:#263d57; --bdr3:#2d4a6b;
+  --txt:#e8edf5; --txt2:#8fa3bc; --txt3:#4d6280;
+  --amber:#f59e0b; --amber2:#fbbf24; --adim:rgba(245,158,11,.12);
+  --green:#22c55e; --gdim:rgba(34,197,94,.12);
+  --red:#ef4444; --rdim:rgba(239,68,68,.12);
+  --blue:#3b82f6; --bdim:rgba(59,130,246,.12);
+  --purple:#a78bfa; --pdim:rgba(167,139,250,.12);
+  --cyan:#06b6d4; --cdim:rgba(6,182,212,.12);
+  --r:10px; --shadow:0 8px 32px rgba(0,0,0,.5);
+  --fb:'Outfit',sans-serif; --fm:'IBM Plex Mono',monospace;
+  --sw:248px; --hh:56px;
+}
+[data-theme=light] {
+  --bg:#f0f4f8; --bg2:#e2e8f0; --bg3:#d1dde8;
+  --surf:#fff; --surf2:#f8fafc; --surf3:#eef2f7;
+  --bdr:#dde4ee; --bdr2:#c8d4e2; --bdr3:#b0c0d4;
+  --txt:#0f172a; --txt2:#475569; --txt3:#94a3b8;
+  --shadow:0 4px 20px rgba(0,0,0,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--fb);background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--amber)}
 
-        // Keyboard Shortcuts
-        document.addEventListener('keydown', (event) => {
-            if (event.ctrlKey && event.key === 'n') {
-                // Implement new item creation
-            } else if (event.ctrlKey && event.key === 'f') {
-                debouncedSearch(); // Trigger search
-            } else if (event.ctrlKey && event.key === 's') {
-                // Implement save functionality
-            }
-        });
+/* ── LAYOUT ── */
+#app{display:flex;min-height:100vh}
+#sidebar{width:var(--sw);min-width:var(--sw);background:var(--surf);border-right:1px solid var(--bdr);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;transition:width .25s;overflow:hidden}
+#sidebar.mini{width:56px;min-width:56px}
+#sidebar.mini .nl,.sidebar-logo-text,.nsl,.nbadge{opacity:0;pointer-events:none;width:0;overflow:hidden}
+#sidebar.mini .ni{justify-content:center;padding:10px 0}
+#sidebar.mini .nic{width:56px;text-align:center;flex-shrink:0}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:14px 16px;min-height:var(--hh);border-bottom:1px solid var(--bdr);flex-shrink:0}
+.lmark{width:32px;height:32px;border-radius:9px;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;color:#000;font-weight:800;font-family:var(--fm)}
+.sidebar-logo-text strong{display:block;font-family:var(--fm);font-size:12px;font-weight:700;color:var(--amber)}
+.sidebar-logo-text span{font-size:10px;color:var(--txt3);font-family:var(--fm)}
+#sidenav{flex:1;padding:10px 8px;overflow-y:auto;overflow-x:hidden}
+.nsl{font-family:var(--fm);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);padding:14px 10px 4px;white-space:nowrap}
+.ni{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--txt2);font-size:13px;font-weight:500;width:100%;background:none;border:none;transition:background .15s,color .15s;cursor:pointer;white-space:nowrap}
+.ni:hover{background:var(--surf2);color:var(--txt)}
+.ni.active{background:var(--adim);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.nic{font-size:15px;flex-shrink:0;width:20px;text-align:center}
+.nl{flex:1;text-align:left}
+.nbadge{background:var(--red);color:#fff;font-family:var(--fm);font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:auto;flex-shrink:0}
+.sidebar-foot{padding:8px;border-top:1px solid var(--bdr);flex-shrink:0}
+.stoggle{width:100%;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--txt3);padding:8px;border-radius:8px;font-size:14px;transition:all .15s}
+.stoggle:hover{background:var(--surf2);color:var(--txt)}
 
-        // Function to handle bulk CSV import
-        function importCSV(file) {
-            // Implement CSV importing logic here
-        }
+#main{flex:1;display:flex;flex-direction:column;margin-left:var(--sw);transition:margin-left .25s;min-width:0}
+#main.mini{margin-left:56px}
+header{height:var(--hh);background:var(--surf);border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:12px;padding:0 20px;position:sticky;top:0;z-index:100}
+.ptitle{font-family:var(--fm);font-weight:700;font-size:13px;color:var(--txt);white-space:nowrap}
+.psub{font-size:11px;color:var(--txt3);font-family:var(--fm)}
+.hact{display:flex;align-items:center;gap:8px;margin-left:auto}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--txt3);flex-shrink:0;transition:background .3s}
+.sdot.online{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.5)}
+.sdot.syncing{background:var(--amber);animation:pd 1s infinite}
+.sdot.error{background:var(--red)}
+@keyframes pd{0%,100%{opacity:1}50%{opacity:.3}}
+main{flex:1;padding:20px;overflow-y:auto}
+.page{display:none}.page.active{display:block}
 
-        // Barcode Scanning Support
-        document.addEventListener('keypress', (event) => {
-            // Implement barcode scanning behavior
-        });
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:var(--fb)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--amber);color:#000}.btn-primary:hover:not(:disabled){background:var(--amber2);transform:translateY(-1px)}
+.btn-secondary{background:var(--surf2);color:var(--txt);border:1px solid var(--bdr)}.btn-secondary:hover:not(:disabled){background:var(--surf3);border-color:var(--bdr2)}
+.btn-danger{background:var(--rdim);color:var(--red);border:1px solid rgba(239,68,68,.25)}.btn-danger:hover:not(:disabled){background:rgba(239,68,68,.2)}
+.btn-success{background:var(--gdim);color:var(--green);border:1px solid rgba(34,197,94,.25)}.btn-success:hover:not(:disabled){background:rgba(34,197,94,.2)}
+.btn-purple{background:var(--pdim);color:var(--purple);border:1px solid rgba(167,139,250,.25)}.btn-purple:hover:not(:disabled){background:rgba(167,139,250,.2)}
+.btn-cyan{background:var(--cdim);color:var(--cyan);border:1px solid rgba(6,182,212,.25)}.btn-cyan:hover:not(:disabled){background:rgba(6,182,212,.2)}
+.btn-sm{padding:5px 12px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
+.bico{background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;padding:7px 12px;color:var(--txt2);font-size:13px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--fb);transition:all .15s}
+.bico:hover{border-color:var(--amber);color:var(--amber)}
 
-        // Session timeout management
-        let sessionTimeout;
-        function resetSessionTimer() {
-            clearTimeout(sessionTimeout);
-            sessionTimeout = setTimeout(() => {
-                // Handle session timeout
-            }, 30 * 60 * 1000); // 30 minutes
-        }
-        window.addEventListener('mousemove', resetSessionTimer);
-        window.addEventListener('keydown', resetSessionTimer);
+/* ── CARDS ── */
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:20px}
+.card-title{font-family:var(--fm);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:14px}
 
-        // Improved input validation
-        function validateInput(input) {
-            // Implement validation logic here
-        }
+/* ── KPI ── */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:14px;margin-bottom:20px}
+.kcard{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:18px;position:relative;overflow:hidden;transition:border .2s,transform .15s;cursor:default}
+.kcard:hover{border-color:var(--bdr2);transform:translateY(-1px)}
+.kcard::before{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit}
+.kcard[data-a=amber]::before{background:radial-gradient(ellipse at top left,rgba(245,158,11,.07),transparent 60%)}
+.kcard[data-a=green]::before{background:radial-gradient(ellipse at top left,rgba(34,197,94,.07),transparent 60%)}
+.kcard[data-a=red]::before{background:radial-gradient(ellipse at top left,rgba(239,68,68,.07),transparent 60%)}
+.kcard[data-a=blue]::before{background:radial-gradient(ellipse at top left,rgba(59,130,246,.07),transparent 60%)}
+.kcard[data-a=purple]::before{background:radial-gradient(ellipse at top left,rgba(167,139,250,.07),transparent 60%)}
+.kico{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
+.kval{font-family:var(--fm);font-size:28px;font-weight:700;line-height:1;letter-spacing:-1px}
+.klbl{font-size:11px;font-weight:600;color:var(--txt2);margin-top:5px;text-transform:uppercase;letter-spacing:.04em}
+.ksub{font-size:10px;color:var(--txt3);margin-top:3px;font-family:var(--fm)}
 
-        // Function for cost tracking
-        function trackCost(cost) {
-            // Implement cost tracking logic here
-        }
+/* ── STAT ROW ── */
+.srow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.smini{background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.smini .sl{font-size:11px;color:var(--txt3)}.smini .sv{font-family:var(--fm);font-weight:700;font-size:15px}
 
-        // Infrastructure for saved filters
-        function saveFilter(filter) {
-            // Implement save filter logic here
-        }
-    </script>
+/* ── TABLE ── */
+.twrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--bdr)}
+table{width:100%;border-collapse:collapse;min-width:800px}
+thead{background:var(--bg2)}
+th{padding:10px 14px;text-align:left;font-family:var(--fm);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--bdr)}
+th:hover{color:var(--txt2)}th.sorted{color:var(--amber)}
+th .si{opacity:.4;margin-left:3px}th.sorted .si{opacity:1}
+td{padding:9px 14px;font-size:13px;border-top:1px solid var(--bdr);color:var(--txt2);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.02)}
+[data-theme=light] tr:hover td{background:rgba(0,0,0,.02)}
+td.nc{color:var(--txt);font-weight:600}td.mo{font-family:var(--fm);font-size:12px}
+.empty{text-align:center;padding:56px 20px;color:var(--txt3)}
+.eico{font-size:40px;margin-bottom:12px;opacity:.3}
+tr.rlow td{background:rgba(245,158,11,.04)}tr.rout td{background:rgba(239,68,68,.06)}
+
+/* ── CONTROLS ── */
+.cbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.sbox{position:relative;flex:1;min-width:200px}
+.sbox input{width:100%;background:var(--surf);border:1px solid var(--bdr);color:var(--txt);border-radius:8px;padding:7px 32px;font-size:13px;outline:none;transition:border .2s}
+.sbox input:focus{border-color:var(--amber)}
+.sico{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:13px;pointer-events:none}
+.sclr{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--txt3);cursor:pointer;font-size:13px}
+.fsel{background:var(--surf);border:1px solid var(--bdr);color:var(--txt);border-radius:8px;padding:7px 10px;font-size:13px;outline:none;cursor:pointer;transition:border .2s}
+.fsel:focus{border-color:var(--amber)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:10px;font-family:var(--fm);font-weight:600;border:1px solid transparent;white-space:nowrap}
+.bok{background:var(--gdim);color:var(--green);border-color:rgba(34,197,94,.25)}
+.blow{background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(245,158,11,.3);animation:blk 2s infinite}
+.bout{background:var(--rdim);color:var(--red);border-color:rgba(239,68,68,.3)}
+.b-consumable{background:var(--bdim);color:var(--blue);border-color:rgba(59,130,246,.25)}
+.b-returnable{background:var(--pdim);color:var(--purple);border-color:rgba(167,139,250,.25)}
+@keyframes blk{0%,100%{opacity:1}50%{opacity:.6}}
+.bcat{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-family:var(--fm);font-weight:600;background:var(--surf3);color:var(--txt2)}
+
+/* ── FORMS ── */
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-family:var(--fm);font-size:10px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em}
+.fg input,.fg select,.fg textarea{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:8px;padding:8px 12px;font-size:13px;outline:none;transition:border .2s;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--amber)}
+.fg input[type=date]{color-scheme:dark}
+[data-theme=light] .fg input[type=date]{color-scheme:light}
+.fg input.inv{border-color:var(--red)!important}
+.fg textarea{resize:vertical;min-height:60px}
+.fhint{font-size:10px;color:var(--txt3);font-family:var(--fm)}
+.fr{display:grid;gap:14px}.fr2{grid-template-columns:1fr 1fr}.fr3{grid-template-columns:1fr 1fr 1fr}
+
+/* ── MODALS ── */
+.mover{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .2s}
+.mover.open{opacity:1;pointer-events:all}
+.mbox{background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.6);transform:translateY(8px);transition:transform .2s}
+.mover.open .mbox{transform:translateY(0)}
+.msm{max-width:400px}.mlg{max-width:740px}.mxl{max-width:900px}
+.mhd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--surf);z-index:2}
+.mhd h3{font-family:var(--fm);font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.mclose{background:none;border:none;color:var(--txt3);font-size:18px;cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .15s}
+.mclose:hover{background:var(--surf2);color:var(--txt)}
+.mbdy{padding:20px}
+.mft{padding:14px 20px;border-top:1px solid var(--bdr);display:flex;gap:10px;justify-content:flex-end;background:var(--surf);position:sticky;bottom:0}
+
+/* ── INFO ROW ── */
+.irow{background:var(--surf2);border-radius:8px;padding:12px 16px;border:1px solid var(--bdr)}
+.irow .il{font-size:10px;font-family:var(--fm);color:var(--txt3);text-transform:uppercase;letter-spacing:.05em}
+.irow .iv{font-size:14px;font-weight:600;color:var(--txt);margin-top:2px}
+
+/* ── ACTIVITY ── */
+.afeed{display:flex;flex-direction:column;gap:0}
+.ait{display:flex;gap:12px;padding:10px 0;position:relative}
+.adot{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.aline{position:absolute;left:15px;top:42px;bottom:0;width:2px;background:var(--bdr)}
+.ait:last-child .aline{display:none}
+.adesc{font-size:13px;color:var(--txt);line-height:1.4}
+.ameta{font-size:10px;font-family:var(--fm);color:var(--txt3);margin-top:2px}
+
+/* ── ALERT DROP ── */
+.abwrap{position:relative}
+.adrop{position:absolute;right:0;top:calc(100% + 8px);width:320px;background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--r);box-shadow:var(--shadow);z-index:500;display:none}
+.adrop.show{display:block}
+.ahd{padding:10px 14px;border-bottom:1px solid var(--bdr);font-family:var(--fm);font-size:11px;font-weight:700;color:var(--txt2);display:flex;justify-content:space-between}
+.aitm{padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.aitm:hover{background:var(--surf2)}.aitm:last-child{border:none}
+.ain{font-size:12px;font-weight:600;color:var(--txt)}.ail{font-size:10px;color:var(--txt3);font-family:var(--fm)}
+.aiq{font-family:var(--fm);font-weight:700;font-size:14px;color:var(--red)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow);z-index:9999;transform:translateY(60px);opacity:0;transition:all .3s;max-width:340px;pointer-events:none;line-height:1.4}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{background:var(--green);color:#fff}
+#toast.error{background:var(--red);color:#fff}
+#toast.info{background:var(--blue);color:#fff}
+#toast.warn{background:var(--amber);color:#000}
+
+/* ── CHARTS ── */
+.cgrid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px}
+.cwrap{position:relative;height:220px}
+.tcol{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* ── LOADER ── */
+#loader{position:fixed;inset:0;background:var(--bg);z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .4s}
+#loader.hidden{opacity:0;pointer-events:none}
+.llogo{width:52px;height:52px;background:var(--amber);border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-weight:800;font-size:20px;color:#000;animation:lp 1.5s ease infinite}
+@keyframes lp{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.lbar{width:200px;height:3px;background:var(--bdr);border-radius:99px;overflow:hidden}
+.linner{height:100%;background:var(--amber);border-radius:99px;animation:ls 1.5s ease infinite}
+@keyframes ls{0%{width:0;margin-left:0}60%{width:100%;margin-left:0}100%{width:0;margin-left:100%}}
+.ltxt{font-family:var(--fm);font-size:12px;color:var(--txt3)}
+
+/* ── PAGER ── */
+.pager{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;font-family:var(--fm);color:var(--txt3)}
+.pager button{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt2);padding:4px 10px;border-radius:6px;font-family:var(--fm);font-size:12px;cursor:pointer;transition:all .15s}
+.pager button:hover:not(:disabled){border-color:var(--amber);color:var(--amber)}
+.pager button:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── RECEIPT ── */
+.rcard{background:#fff;color:#111;font-family:'Arial',sans-serif;width:100%;border:2px solid #1e293b}
+.rhdr{background:#1e293b;color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+.rtitle{font-size:17px;font-weight:900;letter-spacing:2px;text-transform:uppercase}
+.rsub{font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.7;margin-top:3px}
+.rno{text-align:right}
+.rno-label{font-size:8px;letter-spacing:2px;opacity:.7;text-transform:uppercase}
+.rno-val{font-size:14px;font-weight:900;font-family:monospace;color:#f59e0b;margin-top:2px}
+.rmeta{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid #1e293b}
+.rmeta-cell{padding:10px 16px;border-right:1px solid #e5e7eb}
+.rmeta-cell:last-child{border-right:none}
+.rmeta-label{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:3px}
+.rmeta-val{font-size:12px;font-weight:700;color:#111}
+.rsec-hd{background:#f8fafc;padding:7px 16px;font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#475569;border-bottom:1px solid #e5e7eb;border-top:1px solid #e5e7eb}
+.rfields{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e5e7eb}
+.rfield{padding:10px 16px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
+.rfield:nth-child(2n){border-right:none}
+.rfield.full{grid-column:1/-1;border-right:none}
+.rfield-label{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:4px}
+.rfield-val{font-size:12px;font-weight:600;color:#111;line-height:1.4}
+.rfield-val.mono{font-family:monospace;font-size:11px}
+.ritems{padding:0}
+.ritem-row{display:grid;grid-template-columns:1fr auto auto;gap:0;border-bottom:1px solid #f0f0f0}
+.ritem-row.hdr{background:#f8fafc}
+.ritem-cell{padding:8px 16px;font-size:11px}
+.ritem-cell.bold{font-weight:700}
+.ritem-cell.center{text-align:center}
+.ritem{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:4px 0;font-size:11px;border-bottom:1px solid #f5f5f5}
+.ritem:last-child{border:none}
+.rtot{background:#1e293b;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:900}
+.rtot-label{letter-spacing:2px;text-transform:uppercase;font-size:9px;opacity:.8}
+.rtot-val{font-size:22px;font-weight:900;color:#f59e0b}
+.rsig{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid #1e293b}
+.rsig-cell{padding:16px;border-right:1px solid #e5e7eb;text-align:center}
+.rsig-cell:last-child{border-right:none}
+.rsig-line{border-bottom:1.5px solid #333;height:44px;margin-bottom:6px}
+.rsig-name{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#444;margin-top:4px}
+.rsig-role{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px}
+.rftr{background:#f8fafc;padding:8px 16px;display:flex;justify-content:space-between;align-items:center}
+.rftr-left{font-size:8px;color:#888;letter-spacing:.5px}
+.rftr-right{font-size:8px;color:#888;font-family:monospace}
+
+/* ── BULK ROWS ── */
+.bulk-row{display:grid;grid-template-columns:1fr 80px 28px;gap:8px;align-items:center;padding:8px;background:var(--bg2);border-radius:8px;border:1px solid var(--bdr);margin-bottom:8px}
+.bulk-row select{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12px;outline:none}
+.bulk-row input{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12px;outline:none;width:100%}
+.bulk-row .rb{background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.7;transition:opacity .15s}
+.bulk-row .rb:hover{opacity:1}
+
+/* ── TECHNICIAN CARD ── */
+.tech-card{display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;margin-bottom:8px}
+.tech-name{font-weight:600;font-size:13px}
+.tech-dept{font-size:11px;color:var(--txt3);font-family:var(--fm)}
+
+/* ── TX TYPE COLORS ── */
+.tx-add{color:var(--green);font-family:var(--fm);font-weight:700;font-size:11px}
+.tx-use{color:var(--red);font-family:var(--fm);font-weight:700;font-size:11px}
+.tx-ret{color:var(--purple);font-family:var(--fm);font-weight:700;font-size:11px}
+
+/* ── REPAIR STATUS BADGES ── */
+.rs-sent{background:rgba(59,130,246,.12);color:#3b82f6;border:1px solid rgba(59,130,246,.3);font-family:var(--fm);font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.rs-under{background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.3);font-family:var(--fm);font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;animation:blk 2s infinite;white-space:nowrap}
+.rs-repaired{background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.3);font-family:var(--fm);font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.rs-returned{background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.3);font-family:var(--fm);font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap}
+
+/* ── REPAIR RECEIPT ── */
+.rrcard{background:#fff;color:#111;font-family:'Arial',sans-serif;width:190mm;margin:0 auto;border:2px solid #1e293b}
+.rr-banner{background:#1e293b;color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+.rr-banner-title{font-size:16px;font-weight:900;letter-spacing:2px;text-transform:uppercase}
+.rr-banner-sub{font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.7;margin-top:3px}
+.rr-banner-rno{text-align:right}
+.rr-banner-rno-label{font-size:8px;letter-spacing:2px;opacity:.7;text-transform:uppercase}
+.rr-banner-rno-val{font-size:14px;font-weight:900;font-family:monospace;color:#f59e0b;margin-top:2px}
+.rr-meta{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid #1e293b}
+.rr-meta-cell{padding:10px 16px;border-right:1px solid #e5e7eb}
+.rr-meta-cell:last-child{border-right:none}
+.rr-meta-label{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:3px}
+.rr-meta-val{font-size:12px;font-weight:700;color:#111}
+.rr-body{padding:0 0 0 0}
+.rr-section-hd{background:#f8fafc;padding:7px 16px;font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#475569;border-bottom:1px solid #e5e7eb;border-top:1px solid #e5e7eb}
+.rr-fields{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e5e7eb}
+.rr-field{padding:10px 16px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
+.rr-field:nth-child(2n){border-right:none}
+.rr-field.full{grid-column:1/-1;border-right:none}
+.rr-field-label{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:4px}
+.rr-field-val{font-size:12px;font-weight:600;color:#111;line-height:1.4}
+.rr-field-val.mono{font-family:monospace;font-size:11px}
+.rr-status-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.5px}
+.rr-remarks{padding:10px 16px;border-bottom:1px solid #e5e7eb;min-height:48px}
+.rr-sig{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid #1e293b}
+.rr-sig-cell{padding:16px;border-right:1px solid #e5e7eb;text-align:center}
+.rr-sig-cell:last-child{border-right:none}
+.rr-sig-line{border-bottom:1.5px solid #333;height:44px;margin-bottom:6px}
+.rr-sig-name{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#444;margin-top:4px}
+.rr-sig-role{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px}
+.rr-ftr{background:#f8fafc;padding:8px 16px;display:flex;justify-content:space-between;align-items:center}
+.rr-ftr-left{font-size:8px;color:#888;letter-spacing:.5px}
+.rr-ftr-right{font-size:8px;color:#888;font-family:monospace}
+
+/* ── REPAIR OVERLAY ── */
+#repairOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;overflow-y:auto;padding:24px 16px}
+
+/* ── DEBUG ── */
+#dbg{position:fixed;bottom:24px;left:24px;width:500px;max-height:280px;background:#000;border:1px solid #333;border-radius:10px;overflow:hidden;z-index:8000;display:none;flex-direction:column;font-family:var(--fm);font-size:11px}
+#dbg.open{display:flex}
+#dbgbar{background:#111;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;color:#888;flex-shrink:0}
+#dbgbar span{color:var(--amber);font-weight:700}
+#dbglog{flex:1;overflow-y:auto;padding:6px 12px;color:#aaa;line-height:1.7}
+#dbglog .dl{border-bottom:1px solid #0a0a0a;padding:1px 0}
+#dbglog .derr{color:#f87171}.dbglog .dok{color:#4ade80}.#dbglog .dinfo{color:#60a5fa}
+
+/* ── PRINT ── */
+#parea{display:none}
+@media print{body *{visibility:hidden}#parea,#parea *{visibility:visible}#parea{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;padding:20px}}
+
+/* ── OVERLAY / MOBILE ── */
+#sover{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
+#sover.show{display:block}
+.mmb{display:none;background:none;border:none;color:var(--txt2);font-size:20px;padding:4px;cursor:pointer;align-items:center}
+.divider{height:1px;background:var(--bdr);margin:16px 0}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  #sidebar{transform:translateX(-100%);width:var(--sw)!important;min-width:var(--sw)!important}
+  #sidebar.mobile-open{transform:translateX(0)}
+  #main{margin-left:0!important}
+  .kgrid{grid-template-columns:repeat(2,1fr)}
+  .srow{grid-template-columns:repeat(2,1fr)}
+  .cgrid,.tcol{grid-template-columns:1fr}
+  .fr3{grid-template-columns:1fr 1fr}
+  .mmb{display:flex}
+  .hact .bico span:last-child{display:none}
+}
+@media(max-width:540px){
+  .kgrid{grid-template-columns:1fr 1fr}
+  .srow{grid-template-columns:1fr 1fr}
+  .fr2,.fr3{grid-template-columns:1fr}
+  header{padding:0 12px}main{padding:14px}
+  .mbox{border-radius:10px}
+}
+</style>
 </head>
 <body>
-    <h1>Inventory Dashboard</h1>
-    <!-- Existing content goes here -->
+
+<div id="loader">
+  <div class="llogo">SK</div>
+  <div class="lbar"><div class="linner"></div></div>
+  <div class="ltxt" id="ltxt">Connecting to Google Sheets…</div>
+</div>
+
+<div id="sover" onclick="closeSB()"></div>
+<div id="parea"></div>
+
+<div id="app">
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="lmark">SK</div>
+    <div class="sidebar-logo-text">
+      <strong>StoreKeeper</strong><span>Pro v9.0</span>
+    </div>
+  </div>
+  <div id="sidenav">
+    <div class="nsl">Main</div>
+    <button class="ni active" data-p="overview"     onclick="nav('overview')"><span class="nic">📊</span><span class="nl">Overview</span></button>
+    <button class="ni"        data-p="inventory"    onclick="nav('inventory')"><span class="nic">📦</span><span class="nl">Inventory</span></button>
+    <button class="ni"        data-p="transactions" onclick="nav('transactions')"><span class="nic">🔄</span><span class="nl">Transactions</span></button>
+    <div class="nsl">Operations</div>
+    <button class="ni"        data-p="bulk-issue"   onclick="nav('bulk-issue')"><span class="nic">📤</span><span class="nl">Bulk Issue</span></button>
+    <button class="ni"        data-p="bulk-add"     onclick="nav('bulk-add')"><span class="nic">📥</span><span class="nl">Bulk Add Stock</span></button>
+    <button class="ni"        data-p="repairs"      onclick="nav('repairs')"><span class="nic">🔧</span><span class="nl">Repair Register</span><span id="repBadge" class="nbadge" style="display:none;background:var(--blue)">0</span></button>
+    <div class="nsl">Analytics</div>
+    <button class="ni"        data-p="reports"      onclick="nav('reports')"><span class="nic">📈</span><span class="nl">Monthly Reports</span></button>
+    <button class="ni"        data-p="activity"     onclick="nav('activity')"><span class="nic">🕐</span><span class="nl">Activity Log</span></button>
+    <div class="nsl">Tools</div>
+    <button class="ni"        data-p="receipts"     onclick="nav('receipts')"><span class="nic">🧾</span><span class="nl">Receipts</span><span id="rcpBadge" class="nbadge" style="display:none">0</span></button>
+    <button class="ni"        data-p="settings"     onclick="nav('settings')"><span class="nic">⚙️</span><span class="nl">Settings</span></button>
+  </div>
+  <div class="sidebar-foot">
+    <button class="stoggle" onclick="toggleSB()" title="Collapse sidebar">⟨⟩</button>
+  </div>
+</nav>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<div id="main">
+<header>
+  <button class="mmb" onclick="openSB()">☰</button>
+  <div>
+    <div class="ptitle" id="ptitle">Overview</div>
+    <div class="psub"  id="psub">Dashboard &amp; KPIs</div>
+  </div>
+  <div class="hact">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div class="sdot" id="sdot"></div>
+      <span id="slbl" style="font-family:var(--fm);font-size:11px;color:var(--txt3)">Offline</span>
+    </div>
+    <div class="abwrap">
+      <button class="bico" onclick="toggleAlerts()" title="Low stock alerts">🔔 <span id="abadge" class="badge" style="background:var(--red);color:#fff;display:none;margin-left:2px">0</span></button>
+      <div class="adrop" id="adrop">
+        <div class="ahd"><span>⚠️ Stock Alerts</span><span id="acnt" style="color:var(--red)"></span></div>
+        <div id="alist"></div>
+      </div>
+    </div>
+    <button class="bico" onclick="manualSync()">↻ <span>Sync</span></button>
+    <button class="bico" onclick="toggleTheme()" id="tbtn">🌙</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: OVERVIEW
+══════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+
+  <!-- ── SECTION LABEL: INVENTORY HEALTH ── -->
+  <div style="font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--txt3);margin-bottom:10px">📦 Inventory Health</div>
+  <div class="kgrid" style="margin-bottom:20px">
+    <div class="kcard" data-a="amber"><div class="kico" style="background:var(--adim)">📦</div><div class="kval" id="k-total">—</div><div class="klbl">Total Items</div><div class="ksub" id="k-tsub">tracked in system</div></div>
+    <div class="kcard" data-a="green"><div class="kico" style="background:var(--gdim)">✅</div><div class="kval" id="k-normal">—</div><div class="klbl">Normal Stock</div><div class="ksub">above minimum qty</div></div>
+    <div class="kcard" data-a="amber" style="cursor:pointer" onclick="nav('inventory');setTimeout(()=>{$('stF').value='low';filterInv();},100)"><div class="kico" style="background:var(--adim)">⚠️</div><div class="kval" id="k-low">—</div><div class="klbl">Low Stock</div><div class="ksub">at or below minimum</div></div>
+    <div class="kcard" data-a="red" style="cursor:pointer" onclick="nav('inventory');setTimeout(()=>{$('stF').value='out';filterInv();},100)"><div class="kico" style="background:var(--rdim)">🔴</div><div class="kval" id="k-out">—</div><div class="klbl">Critical / Out</div><div class="ksub">zero stock items</div></div>
+  </div>
+
+  <!-- ── SECTION LABEL: REPAIR STATUS ── -->
+  <div style="font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--txt3);margin-bottom:10px">🔧 Repair Status</div>
+  <div class="kgrid" style="margin-bottom:20px">
+    <div class="kcard" data-a="blue" style="cursor:pointer" onclick="nav('repairs');setTimeout(()=>{$('repF').value='Sent';filterRepairs();},100)"><div class="kico" style="background:var(--bdim)">📤</div><div class="kval" id="k-rsent">—</div><div class="klbl">Sent for Repair</div><div class="ksub">awaiting workshop</div></div>
+    <div class="kcard" data-a="amber" style="cursor:pointer" onclick="nav('repairs');setTimeout(()=>{$('repF').value='Under Repair';filterRepairs();},100)"><div class="kico" style="background:var(--adim)">🔨</div><div class="kval" id="k-runder">—</div><div class="klbl">Under Repair</div><div class="ksub">being serviced</div></div>
+    <div class="kcard" data-a="green" style="cursor:pointer" onclick="nav('repairs');setTimeout(()=>{$('repF').value='Repaired';filterRepairs();},100)"><div class="kico" style="background:var(--gdim)">✔️</div><div class="kval" id="k-rrepaired">—</div><div class="klbl">Repaired</div><div class="ksub">ready to collect</div></div>
+    <div class="kcard" data-a="purple" style="cursor:pointer" onclick="nav('repairs');setTimeout(()=>{$('repF').value='Returned';filterRepairs();},100)"><div class="kico" style="background:var(--pdim)">↩️</div><div class="kval" id="k-rret">—</div><div class="klbl">Returned</div><div class="ksub">back in service</div></div>
+  </div>
+
+  <!-- ── SECTION LABEL: TRANSACTIONS ── -->
+  <div style="font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--txt3);margin-bottom:10px">🔄 Transactions</div>
+  <div class="kgrid" style="margin-bottom:20px">
+    <div class="kcard" data-a="red"><div class="kico" style="background:var(--rdim)">📤</div><div class="kval" id="k-today">—</div><div class="klbl">Issues Today</div><div class="ksub" id="k-todaydate">—</div></div>
+    <div class="kcard" data-a="purple"><div class="kico" style="background:var(--pdim)">📅</div><div class="kval" id="k-used">—</div><div class="klbl">Issues This Month</div><div class="ksub" id="k-usedmo">units issued</div></div>
+    <div class="kcard" data-a="blue"><div class="kico" style="background:var(--bdim)">🏗️</div><div class="kval" id="k-stock">—</div><div class="klbl">Total Stock</div><div class="ksub">units in inventory</div></div>
+    <div class="kcard" data-a="green"><div class="kico" style="background:var(--gdim)">📥</div><div class="kval" id="k-addedmo">—</div><div class="klbl">Added This Month</div><div class="ksub">units restocked</div></div>
+  </div>
+
+  <div class="cgrid">
+    <div class="card"><div class="card-title">Usage Trend — Last 7 Days</div><div class="cwrap"><canvas id="usageChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Category Distribution</div><div class="cwrap"><canvas id="catChart"></canvas></div></div>
+  </div>
+  <div class="tcol">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin:0">Recent Activity</div>
+        <button class="btn btn-xs btn-secondary" onclick="nav('activity')">View All</button>
+      </div>
+      <div class="afeed" id="ovAct"><div style="color:var(--txt3);text-align:center;padding:20px">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin:0">🔴 Critical / Out of Stock</div>
+        <button class="btn btn-xs btn-secondary" onclick="nav('inventory');setTimeout(()=>{$('stF').value='out';filterInv();},100)">View All</button>
+      </div>
+      <div id="ovLow" style="display:flex;flex-direction:column;gap:8px"><div style="color:var(--txt3);text-align:center;padding:20px">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: INVENTORY
+══════════════════════════════════════════════ -->
+<div class="page" id="page-inventory">
+  <div class="cbar">
+    <div class="sbox">
+      <span class="sico">🔍</span>
+      <input type="text" id="invQ" placeholder="Search name, part code, supplier, category, location…" oninput="filterInv()"/>
+      <button class="sclr" id="invClr" onclick="clearInvQ()" style="display:none">✕</button>
+    </div>
+    <select class="fsel" id="catF" onchange="filterInv()"><option value="">All Categories</option></select>
+    <select class="fsel" id="locF" onchange="filterInv()"><option value="">All Locations</option></select>
+    <select class="fsel" id="typeF" onchange="filterInv()">
+      <option value="">All Types</option>
+      <option value="consumable">Consumable</option>
+      <option value="returnable">Returnable</option>
+    </select>
+    <select class="fsel" id="stF" onchange="filterInv()">
+      <option value="">All Stock</option>
+      <option value="ok">In Stock</option>
+      <option value="low">Low Stock</option>
+      <option value="out">Out of Stock</option>
+    </select>
+    <button class="btn btn-primary" onclick="openAdd()">＋ Add Item</button>
+    <button class="btn btn-secondary" onclick="exportInv()">⬇ Export</button>
+  </div>
+  <div class="srow">
+    <div class="smini"><span class="sl">Showing</span><span class="sv" id="iCnt" style="color:var(--amber)">0</span></div>
+    <div class="smini"><span class="sl">Low Stock</span><span class="sv" id="iLow" style="color:var(--amber)">0</span></div>
+    <div class="smini"><span class="sl">Out of Stock</span><span class="sv" id="iOut" style="color:var(--red)">0</span></div>
+    <div class="smini"><span class="sl">Total Qty</span><span class="sv" id="iQty" style="color:var(--green)">0</span></div>
+  </div>
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th onclick="sort('name')"     data-c="name">Name <span class="si">↕</span></th>
+        <th onclick="sort('category')" data-c="category">Category <span class="si">↕</span></th>
+        <th onclick="sort('partCode')" data-c="partCode">Part Code <span class="si">↕</span></th>
+        <th onclick="sort('supplier')" data-c="supplier">Supplier <span class="si">↕</span></th>
+        <th onclick="sort('location')" data-c="location">Location <span class="si">↕</span></th>
+        <th>Type</th>
+        <th onclick="sort('quantity')" data-c="quantity">Qty <span class="si">↕</span></th>
+        <th onclick="sort('minQty')"   data-c="minQty">Min <span class="si">↕</span></th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr></thead>
+      <tbody id="invTb"><tr><td colspan="10" class="empty"><div class="eico">📦</div>Loading inventory…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <button id="pPrev" onclick="chPg(-1)" disabled>‹ Prev</button>
+    <span id="pInfo">Page 1</span>
+    <button id="pNext" onclick="chPg(1)" disabled>Next ›</button>
+    <span style="margin-left:auto">Show: <select class="fsel" id="pgSize" onchange="chPgSize()" style="padding:3px 6px;font-size:11px">
+      <option value="50">50</option><option value="100">100</option><option value="200">200</option>
+    </select></span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: TRANSACTIONS
+══════════════════════════════════════════════ -->
+<div class="page" id="page-transactions">
+  <div class="cbar">
+    <div class="sbox"><span class="sico">🔍</span><input type="text" id="txQ" placeholder="Search by item, technician, note…" oninput="filterTx()"/></div>
+    <select class="fsel" id="txTF" onchange="filterTx()">
+      <option value="">All Types</option>
+      <option value="ADD">Stock Added</option>
+      <option value="ISSUE">Issued</option>
+      <option value="RETURN_TO_VENDOR">Returned to Vendor</option>
+    </select>
+    <input type="date" class="fsel" id="txDateF" onchange="filterTx()" title="Filter by transaction date"/>
+    <button class="btn btn-secondary" onclick="exportTx()">⬇ Export</button>
+  </div>
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th>Tx Date</th><th>Item</th><th>Type</th><th>Qty</th>
+        <th>Prev</th><th>New</th><th>Technician</th><th>Note</th><th>Group</th>
+      </tr></thead>
+      <tbody id="txTb"><tr><td colspan="9" class="empty"><div class="eico">🔄</div>No transactions yet</td></tr></tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <button id="txPrev" onclick="chTxPg(-1)" disabled>‹ Prev</button>
+    <span id="txInfo">Page 1</span>
+    <button id="txNext" onclick="chTxPg(1)" disabled>Next ›</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: BULK ISSUE
+══════════════════════════════════════════════ -->
+<div class="page" id="page-bulk-issue">
+  <div class="card" style="max-width:780px;margin:0 auto">
+    <div class="card-title">📤 Bulk Issue — Issue Multiple Items</div>
+    <div class="fr fr3" style="margin-bottom:16px">
+      <div class="fg">
+        <label>Transaction Date *</label>
+        <input type="date" id="biDate"/>
+      </div>
+      <div class="fg">
+        <label>Technician *</label>
+        <input type="text" id="biTech" list="techList" placeholder="Select or type name"/>
+        <datalist id="techList"></datalist>
+      </div>
+      <div class="fg">
+        <label>Work Description</label>
+        <input type="text" id="biDesc" placeholder="e.g. Pump maintenance – Unit 3"/>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-family:var(--fm);font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Items to Issue (consumable only)</div>
+    <div id="biRows"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addBIRow()" style="margin-top:8px">＋ Add Item</button>
+    <div class="divider"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="resetBulkIssue()">Reset</button>
+      <button class="btn btn-primary" onclick="submitBulkIssue()" id="biBtn">📤 Submit Issue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: BULK ADD STOCK
+══════════════════════════════════════════════ -->
+<div class="page" id="page-bulk-add">
+  <div class="card" style="max-width:780px;margin:0 auto">
+    <div class="card-title">📥 Bulk Add Stock — Add Stock to Multiple Items</div>
+    <div class="fr fr3" style="margin-bottom:16px">
+      <div class="fg">
+        <label>Transaction Date *</label>
+        <input type="date" id="baDate"/>
+      </div>
+      <div class="fg">
+        <label>Supplier / Source</label>
+        <input type="text" id="baSupplier" placeholder="e.g. Siemens, Amazon, Local"/>
+      </div>
+      <div class="fg">
+        <label>PO / Reference Note</label>
+        <input type="text" id="baNote" placeholder="e.g. PO-2026-0034"/>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-family:var(--fm);font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Items to Restock</div>
+    <div id="baRows"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addBARow()" style="margin-top:8px">＋ Add Item</button>
+    <div class="divider"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="resetBulkAdd()">Reset</button>
+      <button class="btn btn-success" onclick="submitBulkAdd()" id="baBtn">📥 Submit Stock Addition</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: REPAIR REGISTER
+══════════════════════════════════════════════ -->
+<div class="page" id="page-repairs">
+  <div class="cbar">
+    <div class="sbox"><span class="sico">🔍</span><input type="text" id="repQ" placeholder="Search machine, component, company…" oninput="filterRepairs()"/></div>
+    <select class="fsel" id="repF" onchange="filterRepairs()">
+      <option value="">All Statuses</option>
+      <option value="Sent">Sent</option>
+      <option value="Under Repair">Under Repair</option>
+      <option value="Repaired">Repaired</option>
+      <option value="Returned">Returned</option>
+    </select>
+    <input type="date" class="fsel" id="repDateF" onchange="filterRepairs()" title="Filter by date sent"/>
+    <button class="btn btn-primary" onclick="openAddRepair()">🔧 Add Repair Entry</button>
+    <button class="btn btn-secondary" onclick="exportRepairs()">⬇ Export</button>
+  </div>
+  <!-- Summary strip -->
+  <div class="srow" style="margin-bottom:14px">
+    <div class="smini"><span class="sl">Total Entries</span><span class="sv" id="repCntTotal" style="color:var(--txt)">0</span></div>
+    <div class="smini"><span class="sl">Active (Sent/Under)</span><span class="sv" id="repCntActive" style="color:var(--amber)">0</span></div>
+    <div class="smini"><span class="sl">Ready to Collect</span><span class="sv" id="repCntReady" style="color:var(--green)">0</span></div>
+    <div class="smini"><span class="sl">Completed</span><span class="sv" id="repCntDone" style="color:var(--purple)">0</span></div>
+  </div>
+  <div class="twrap">
+    <table style="min-width:1000px">
+      <thead><tr>
+        <th>Date Sent</th>
+        <th>Machine</th>
+        <th>Component</th>
+        <th>Part No.</th>
+        <th>Problem</th>
+        <th>Sent To</th>
+        <th>Status</th>
+        <th>Exp. Return</th>
+        <th>Receipt No.</th>
+        <th>Actions</th>
+      </tr></thead>
+      <tbody id="repTb2"><tr><td colspan="10" class="empty"><div class="eico">🔧</div>No repair entries yet</td></tr></tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <button id="repPrev" onclick="chRepPg(-1)" disabled>‹ Prev</button>
+    <span id="repInfo">Page 1</span>
+    <button id="repNext" onclick="chRepPg(1)" disabled>Next ›</button>
+  </div>
+</div>
+
+<!-- ── REPAIR RECEIPT OVERLAY ── -->
+<div id="repairOverlay">
+  <div style="max-width:800px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="downloadRepairPdf()" style="background:var(--blue);color:#fff;font-weight:700">⬇ Download PDF</button>
+      <button class="btn btn-secondary" onclick="printRepairRcp()">🖨 Print (A4)</button>
+      <button class="btn btn-secondary" onclick="closeRepairOverlay()">✕ Close</button>
+      <span style="font-size:11px;color:var(--txt3);margin-left:auto">Repair Dispatch Receipt — A4</span>
+    </div>
+    <div id="repairRcpContent" style="box-shadow:0 8px 40px rgba(0,0,0,.6);border-radius:0"></div>
+  </div>
+</div>
+<div class="page" id="page-reports">
+
+  <!-- ── MONTHLY REPORT GENERATOR ── -->
+  <div class="card" style="margin-bottom:20px;border:1px solid var(--amber);background:linear-gradient(135deg,var(--adim) 0%,var(--surf) 100%)">
+    <div class="card-title" style="color:var(--amber);font-size:15px">📋 Monthly Report Generator</div>
+    <div style="color:var(--txt2);font-size:12px;margin-bottom:16px">Generate a professional printable PDF report for any month</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:11px;color:var(--txt3);font-weight:600">SELECT MONTH</label>
+        <input type="month" id="mrMonth" class="fsel" style="min-width:160px"/>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:11px;color:var(--txt3);font-weight:600">DEPARTMENT</label>
+        <input type="text" id="mrDept" class="fsel" placeholder="e.g. Maintenance" style="min-width:160px"/>
+      </div>
+      <button class="btn btn-primary" onclick="generateMonthlyReport()" style="background:var(--amber);color:#000;font-weight:700;gap:6px">
+        📄 Generate Report
+      </button>
+    </div>
+  </div>
+
+  <!-- ── ANALYTICS (existing) ── -->
+  <div class="cbar">
+    <select class="fsel" id="repMo" onchange="renderRep()"><option value="">All Months</option></select>
+    <select class="fsel" id="repCat" onchange="renderRep()"><option value="">All Categories</option></select>
+    <button class="btn btn-secondary" onclick="exportRep()">⬇ Export Data</button>
+  </div>
+  <div class="cgrid" style="margin-bottom:20px">
+    <div class="card"><div class="card-title">Monthly Usage vs Stock Added</div><div class="cwrap"><canvas id="moChart"></canvas></div></div>
+    <div class="card"><div class="card-title">🏆 Top 10 Most Used Items</div><div id="top10" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:200px;overflow-y:auto"></div></div>
+  </div>
+  <div class="twrap">
+    <table>
+      <thead><tr><th>Month</th><th>Item</th><th>Category</th><th>Total Used</th><th>Total Added</th><th>Net Change</th></tr></thead>
+      <tbody id="repTb"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MONTHLY REPORT PREVIEW MODAL
+══════════════════════════════════════════════ -->
+<div id="mrOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;overflow-y:auto;padding:24px 16px">
+  <div style="max-width:860px;margin:0 auto">
+    <!-- Action bar -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="downloadMRPdf()" style="background:var(--amber);color:#000;font-weight:700">⬇ Download PDF</button>
+      <button class="btn btn-secondary" onclick="printMR()">🖨 Print</button>
+      <button class="btn btn-secondary" onclick="closeMR()">✕ Close</button>
+      <span style="font-size:11px;color:var(--txt3);margin-left:auto">Preview — actual PDF may vary slightly</span>
+    </div>
+    <!-- Report content -->
+    <div id="mrContent" style="background:#fff;color:#111;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: ACTIVITY LOG
+══════════════════════════════════════════════ -->
+<div class="page" id="page-activity">
+  <div class="cbar">
+    <div class="sbox"><span class="sico">🔍</span><input type="text" id="actQ" placeholder="Search activity…" oninput="filterAct()"/></div>
+    <select class="fsel" id="actTF" onchange="filterAct()">
+      <option value="">All Actions</option>
+      <option value="ADD_ITEM">Item Added</option>
+      <option value="UPDATE_ITEM">Item Updated</option>
+      <option value="DELETE_ITEM">Item Deleted</option>
+      <option value="ADD_STOCK">Stock Added</option>
+      <option value="ISSUE">Item Issued</option>
+      <option value="RETURN_TO_VENDOR">Returned to Vendor</option>
+      <option value="BULK_ISSUE">Bulk Issue</option>
+      <option value="BULK_ADD">Bulk Add Stock</option>
+      <option value="LOW_STOCK">Low Stock Alert</option>
+      <option value="OUT_STOCK">Out of Stock</option>
+    </select>
+    <input type="date" class="fsel" id="actDateF" onchange="filterAct()" title="Filter by date"/>
+  </div>
+  <div class="afeed card" id="actFeed" style="padding:20px"><div style="text-align:center;padding:40px;color:var(--txt3)">Loading…</div></div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: RECEIPTS
+══════════════════════════════════════════════ -->
+<div class="page" id="page-receipts">
+  <div class="cbar">
+    <div class="sbox"><span class="sico">🔍</span><input type="text" id="rcpQ" placeholder="Search receipts…" oninput="filterRcp()"/></div>
+    <button class="btn btn-danger btn-sm" onclick="clearRcp()" style="margin-left:auto">🗑 Clear History</button>
+  </div>
+  <div id="rcpList" style="display:flex;flex-direction:column;gap:12px">
+    <div style="text-align:center;padding:48px;color:var(--txt3)"><div style="font-size:42px;margin-bottom:10px;opacity:.3">🧾</div>No receipts yet. Issue or add stock to generate receipts.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: SETTINGS
+══════════════════════════════════════════════ -->
+<div class="page" id="page-settings">
+  <div style="max-width:640px">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">🔌 API Configuration</div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="fg">
+          <label>Google Apps Script URL *</label>
+          <input type="url" id="gasUrl" placeholder="https://script.google.com/macros/s/…/exec"/>
+          <div class="fhint">Deploy → Web App → /exec URL</div>
+        </div>
+        <div class="fr fr2">
+          <div class="fg">
+            <label>Facility Name</label>
+            <input type="text" id="facInput" placeholder="e.g. HVAC Plant"/>
+          </div>
+          <div class="fg">
+            <label>Your Name (for logs)</label>
+            <input type="text" id="unInput" placeholder="e.g. Aman Singh"/>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveSettings()">💾 Save &amp; Connect</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">👷 Technician Management</div>
+      <div id="techList2" style="margin-bottom:12px"></div>
+      <button class="btn btn-secondary btn-sm" onclick="openAddTech()">＋ Add Technician</button>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">📊 Data Management</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--surf2);border-radius:8px;border:1px solid var(--bdr)">
+          <div><div style="font-weight:600;font-size:13px">Manual Sync</div><div style="font-size:11px;color:var(--txt3)">Reload all data from Google Sheets</div></div>
+          <button class="btn btn-secondary btn-sm" onclick="manualSync()">↻ Sync Now</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--surf2);border-radius:8px;border:1px solid var(--bdr)">
+          <div><div style="font-weight:600;font-size:13px">Export Inventory</div><div style="font-size:11px;color:var(--txt3)">Download all items as Excel</div></div>
+          <button class="btn btn-secondary btn-sm" onclick="exportInv()">⬇ Export</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--surf2);border-radius:8px;border:1px solid var(--bdr)">
+          <div><div style="font-weight:600;font-size:13px">Debug Console</div><div style="font-size:11px;color:var(--txt3)">Show API calls and sync events</div></div>
+          <button class="btn btn-secondary btn-sm" id="dbgBtn" onclick="toggleDbg()">Enable</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ℹ System Info</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--txt3);line-height:2.2">
+        <div>Version: <span style="color:var(--amber)">9.0.0</span></div>
+        <div>Items: <span style="color:var(--txt)" id="sItems">—</span> &nbsp;|&nbsp; Transactions: <span style="color:var(--txt)" id="sTx">—</span> &nbsp;|&nbsp; Repairs: <span style="color:var(--txt)" id="sRep">—</span> &nbsp;|&nbsp; Technicians: <span style="color:var(--txt)" id="sTechs">—</span></div>
+        <div>Last Sync: <span style="color:var(--txt)" id="sSync">Never</span></div>
+        <div>Status: <span id="sStat" style="color:var(--green)">—</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</main>
+</div><!-- #main -->
+</div><!-- #app -->
+
+<!-- ═══════════════════ DEBUG ═══════════════════ -->
+<div id="dbg">
+  <div id="dbgbar">
+    <span>🐛 DEBUG</span>
+    <div style="display:flex;gap:6px">
+      <button onclick="document.getElementById('dbglog').innerHTML=''" style="background:none;border:1px solid #333;color:#888;padding:2px 8px;border-radius:4px;font-size:10px;cursor:pointer">Clear</button>
+      <button onclick="toggleDbg()" style="background:none;border:1px solid #333;color:#888;padding:2px 8px;border-radius:4px;font-size:10px;cursor:pointer">Close</button>
+    </div>
+  </div>
+  <div id="dbglog"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════
+     MODALS
+═══════════════════════════════════════ -->
+
+<!-- ADD / EDIT ITEM -->
+<div class="mover" id="mItem">
+  <div class="mbox">
+    <div class="mhd"><h3 id="mItemTitle">Add New Item</h3><button class="mclose" onclick="closeM('mItem')">✕</button></div>
+    <div class="mbdy">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="fr fr2">
+          <div class="fg" style="grid-column:1/-1"><label>Item Name *</label><input type="text" id="fNm" placeholder="e.g. Bearing 6309ZZ"/></div>
+          <div class="fg"><label>Item Type *</label>
+            <select id="fType">
+              <option value="consumable">Consumable</option>
+              <option value="returnable">Returnable</option>
+            </select>
+          </div>
+          <div class="fg"><label>Category</label>
+            <select id="fCat">
+              <option>General</option><option>Tools</option><option>Spare Parts</option><option>Consumables</option>
+              <option>Electrical</option><option>Communication</option><option>Control Modules</option>
+              <option>CPU/Controllers</option><option>I/O Modules</option><option>Network/Comms</option>
+              <option>Power Supply</option><option>Rack Systems</option><option>Diagnostic Modules</option>
+              <option>Memory/Storage</option><option>Contactors</option><option>Circuit Breakers</option>
+              <option>Relays</option><option>Motors</option><option>VFD</option><option>Fuses</option>
+              <option>Pumps</option><option>Bearings</option><option>Belts</option>
+              <option>Cooling Tower Parts</option><option>Valves &amp; Actuators</option>
+              <option>Instruments</option><option>Transformers</option><option>Capacitors</option>
+              <option>Power Electronics</option><option>Measurement Instruments</option>
+              <option>IT Equipment</option><option>Cooling</option><option>Lighting</option>
+              <option>Alarms</option><option>Terminal Blocks</option>
+            </select>
+          </div>
+        </div>
+        <div class="fr fr2">
+          <div class="fg"><label>Part Code</label><input type="text" id="fPC" placeholder="e.g. 6GK7443-1EX30"/></div>
+          <div class="fg"><label>Supplier</label><input type="text" id="fSup" placeholder="e.g. SIEMENS"/></div>
+        </div>
+        <div class="fg"><label>Location</label><input type="text" id="fLoc" placeholder="e.g. ELECTRICAL STORE ALMIRAH" list="locList"/><datalist id="locList"></datalist></div>
+        <div class="fr fr3">
+          <div class="fg"><label id="fQtyLbl">Initial Qty</label><input type="number" id="fQty" min="0" value="0"/></div>
+          <div class="fg"><label>Min Qty Alert</label><input type="number" id="fMin" min="0" value="2"/></div>
+          <div class="fg"><label>Barcode (optional)</label><input type="text" id="fBC" placeholder="Scan or type"/></div>
+        </div>
+        <div id="fTypeNote" style="font-size:11px;color:var(--txt3);background:var(--surf2);padding:8px 12px;border-radius:8px;border:1px solid var(--bdr);font-family:var(--fm)"></div>
+      </div>
+      <input type="hidden" id="fId"/>
+    </div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mItem')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveItem()" id="savBtn">💾 Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW ITEM -->
+<div class="mover" id="mView">
+  <div class="mbox">
+    <div class="mhd"><h3>Item Details</h3><button class="mclose" onclick="closeM('mView')">✕</button></div>
+    <div class="mbdy" id="mViewBody"></div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mView')">Close</button>
+      <button class="btn btn-primary" id="vEditBtn">✏️ Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="mover" id="mDel">
+  <div class="mbox msm">
+    <div class="mhd"><h3>⚠️ Confirm Delete</h3><button class="mclose" onclick="closeM('mDel')">✕</button></div>
+    <div class="mbdy">
+      <p style="color:var(--txt2);font-size:13px;line-height:1.7">Delete <strong id="delName" style="color:var(--red)"></strong>?<br>Transaction history will be kept but the item will be permanently removed.</p>
+      <p style="font-size:12px;color:var(--txt3);margin-top:8px">This cannot be undone.</p>
+    </div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mDel')">Cancel</button>
+      <button class="btn btn-danger" id="delBtn">🗑 Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD STOCK (single) -->
+<div class="mover" id="mAddSt">
+  <div class="mbox msm">
+    <div class="mhd"><h3>📥 Add Stock</h3><button class="mclose" onclick="closeM('mAddSt')">✕</button></div>
+    <div class="mbdy">
+      <div id="asInfo" class="irow" style="margin-bottom:16px"></div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="fg"><label>Transaction Date *</label><input type="date" id="asDate"/></div>
+        <div class="fg"><label>Quantity to Add *</label><input type="number" id="asQty" min="1" value="1"/></div>
+        <div class="fg"><label>Supplier / Source</label><input type="text" id="asSupplier" placeholder="e.g. Siemens"/></div>
+        <div class="fg"><label>Note / PO Reference</label><input type="text" id="asNote" placeholder="e.g. PO-12345"/></div>
+      </div>
+    </div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mAddSt')">Cancel</button>
+      <button class="btn btn-success" onclick="submitAddSt()" id="asBtn">📥 Confirm Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ISSUE ITEM (single, consumable) -->
+<div class="mover" id="mUse">
+  <div class="mbox msm">
+    <div class="mhd"><h3>📤 Issue Item</h3><button class="mclose" onclick="closeM('mUse')">✕</button></div>
+    <div class="mbdy">
+      <div id="uInfo" class="irow" style="margin-bottom:16px"></div>
+      <div id="uWarn" style="display:none;font-size:12px;color:var(--red);background:var(--rdim);padding:8px 12px;border-radius:8px;margin-bottom:12px">⚠️ Quantity exceeds available stock!</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="fg"><label>Transaction Date *</label><input type="date" id="uDate"/></div>
+        <div class="fg"><label>Quantity to Issue *</label><input type="number" id="uQty" min="1" value="1" oninput="chkUseQty()"/></div>
+        <div class="fg">
+          <label>Issued To (Technician) *</label>
+          <input type="text" id="uUser" placeholder="Select or type technician" list="techListU"/>
+          <datalist id="techListU"></datalist>
+        </div>
+        <div class="fg"><label>Work Description / Note</label><textarea id="uNote" rows="2" placeholder="What was this used for?"></textarea></div>
+      </div>
+    </div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mUse')">Cancel</button>
+      <button class="btn btn-danger" onclick="submitUse()" id="uBtn">📤 Confirm Issue</button>
+    </div>
+  </div>
+</div>
+
+<!-- RETURN TO VENDOR (returnable) -->
+<div class="mover" id="mReturn">
+  <div class="mbox msm">
+    <div class="mhd"><h3>↩️ Return to Vendor</h3><button class="mclose" onclick="closeM('mReturn')">✕</button></div>
+    <div class="mbdy">
+      <div id="rtInfo" class="irow" style="margin-bottom:16px"></div>
+      <div id="rtWarn" style="display:none;font-size:12px;color:var(--red);background:var(--rdim);padding:8px 12px;border-radius:8px;margin-bottom:12px">⚠️ Quantity exceeds available stock!</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="fg"><label>Transaction Date *</label><input type="date" id="rtDate"/></div>
+        <div class="fg"><label>Quantity to Return *</label><input type="number" id="rtQty" min="1" value="1" oninput="chkRetQty()"/></div>
+        <div class="fg"><label>Vendor / Returned To *</label><input type="text" id="rtVendor" placeholder="e.g. Siemens, Kirloskar"/></div>
+        <div class="fg"><label>Return Reason / Note</label><textarea id="rtNote" rows="2" placeholder="Reason for return…"></textarea></div>
+      </div>
+    </div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mReturn')">Cancel</button>
+      <button class="btn btn-purple" onclick="submitReturn()" id="rtBtn">↩️ Confirm Return</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECEIPT MODAL -->
+<div class="mover" id="mRcp">
+  <div class="mbox" style="max-width:780px;width:95%">
+    <div class="mhd"><h3>🧾 Issue Receipt</h3><button class="mclose" onclick="closeM('mRcp')">✕</button></div>
+    <div class="mbdy" id="mRcpBody"></div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mRcp')">Close</button>
+      <button class="btn btn-primary" onclick="printRcp()">🖨️ Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TECHNICIAN -->
+<div class="mover" id="mTech">
+  <div class="mbox msm">
+    <div class="mhd"><h3 id="mTechTitle">Add Technician</h3><button class="mclose" onclick="closeM('mTech')">✕</button></div>
+    <div class="mbdy">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="fg"><label>Name *</label><input type="text" id="tName" placeholder="Full name"/></div>
+        <div class="fg"><label>Department</label><input type="text" id="tDept" placeholder="e.g. HVAC, Electrical"/></div>
+        <div class="fg"><label>Phone (optional)</label><input type="text" id="tPhone" placeholder="Contact number"/></div>
+      </div>
+      <input type="hidden" id="tId"/>
+    </div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mTech')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTech()" id="savTechBtn">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MODAL: ADD / EDIT REPAIR ENTRY
+══════════════════════════════════════════════ -->
+<div class="mover" id="mRepair">
+  <div class="mbox mlg">
+    <div class="mhd"><h3 id="mRepairTitle">🔧 Add Repair Entry</h3><button class="mclose" onclick="closeM('mRepair')">✕</button></div>
+    <div class="mbdy">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="fr fr2">
+          <div class="fg"><label>Date Sent *</label><input type="date" id="rpDate"/></div>
+          <div class="fg"><label>Receipt / Job Number</label><input type="text" id="rpRNo" placeholder="e.g. JOB-2026-034"/></div>
+        </div>
+        <div class="fr fr2">
+          <div class="fg"><label>Machine Name *</label><input type="text" id="rpMachine" placeholder="e.g. Chiller Unit 1, AHU-03"/></div>
+          <div class="fg"><label>Component Name *</label><input type="text" id="rpComponent" placeholder="e.g. VFD Drive, Flow Switch"/></div>
+        </div>
+        <div class="fr fr2">
+          <div class="fg"><label>Part Number</label><input type="text" id="rpPartNo" placeholder="e.g. 6ES7412-5HK06"/></div>
+          <div class="fg"><label>Sent To (Company) *</label><input type="text" id="rpCompany" placeholder="e.g. Siemens, Kirloskar Service"/></div>
+        </div>
+        <div class="fg"><label>Problem Description *</label><textarea id="rpProblem" rows="2" placeholder="Describe the fault or issue clearly…"></textarea></div>
+        <div class="fr fr2">
+          <div class="fg"><label>Expected Return Date</label><input type="date" id="rpExpReturn"/></div>
+          <div class="fg"><label>Repair Status</label>
+            <select id="rpStatus">
+              <option value="Sent">Sent</option>
+              <option value="Under Repair">Under Repair</option>
+              <option value="Repaired">Repaired</option>
+              <option value="Returned">Returned</option>
+            </select>
+          </div>
+        </div>
+        <div class="fr fr2">
+          <div class="fg"><label>Actual Return Date</label><input type="date" id="rpActReturn"/></div>
+          <div class="fg"><label>Issued By</label><input type="text" id="rpIssuedBy" placeholder="Your name"/></div>
+        </div>
+        <div class="fg"><label>Remarks</label><textarea id="rpRemarks" rows="2" placeholder="Any additional notes, cost, warranty info…"></textarea></div>
+        <input type="hidden" id="rpId"/>
+      </div>
+    </div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mRepair')">Cancel</button>
+      <button class="btn btn-cyan" onclick="saveRepairAndReceipt()" id="rpRcpBtn" style="margin-right:auto">🖨 Save & Print Receipt</button>
+      <button class="btn btn-primary" onclick="saveRepair()" id="rpBtn">💾 Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: UPDATE REPAIR STATUS -->
+<div class="mover" id="mRepairStatus">
+  <div class="mbox msm">
+    <div class="mhd"><h3>🔄 Update Repair Status</h3><button class="mclose" onclick="closeM('mRepairStatus')">✕</button></div>
+    <div class="mbdy">
+      <div id="rsInfo" class="irow" style="margin-bottom:16px"></div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="fg"><label>New Status *</label>
+          <select id="rsStatus">
+            <option value="Sent">Sent</option>
+            <option value="Under Repair">Under Repair</option>
+            <option value="Repaired">Repaired</option>
+            <option value="Returned">Returned</option>
+          </select>
+        </div>
+        <div class="fg"><label>Actual Return Date</label><input type="date" id="rsActReturn"/></div>
+        <div class="fg"><label>Remarks / Update Note</label><textarea id="rsRemarks" rows="2" placeholder="e.g. Repaired under warranty, collected by Aman"></textarea></div>
+      </div>
+      <input type="hidden" id="rsId"/>
+    </div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mRepairStatus')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitRepairStatus()" id="rsBtn">✅ Update Status</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VIEW REPAIR DETAILS -->
+<div class="mover" id="mRepairView">
+  <div class="mbox mlg">
+    <div class="mhd"><h3>🔧 Repair Details</h3><button class="mclose" onclick="closeM('mRepairView')">✕</button></div>
+    <div class="mbdy" id="repairViewBody"></div>
+    <div class="mft">
+      <button class="btn btn-secondary" onclick="closeM('mRepairView')">Close</button>
+      <button class="btn btn-cyan" id="repViewRcpBtn">🖨 Print Receipt</button>
+      <button class="btn btn-amber" id="repViewStatusBtn" style="background:var(--amber);color:#000">🔄 Update Status</button>
+      <button class="btn btn-primary" id="repViewEditBtn">✏️ Edit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════════
+const CFG = {
+  get url()   { return localStorage.getItem('gas_url')  || '' },
+  get user()  { return localStorage.getItem('user_name')|| 'System' },
+  get fac()   { return localStorage.getItem('facility') || 'HVAC Plant' },
+  set url(v)  { localStorage.setItem('gas_url',  v) },
+  set user(v) { localStorage.setItem('user_name', v) },
+  set fac(v)  { localStorage.setItem('facility',  v) },
+  PS: 50
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let DB = { items:[], transactions:[], activity:[], report:[], stats:{}, technicians:[], repairs:[] };
+let RECEIPTS = [];
+let fItems = [], fTx = [], fRepairs = [];
+let sCol = 'name', sAsc = true;
+let iPage = 1, txPage = 1, repPage = 1, iPS = 50;
+let activeId = null, curRcp = null, activeRepairId = null;
+let charts = {};
+let DEBUG = false;
+let _syncInProgress = false;
+
+// ═══════════════════════════════════════════════════════════════════
+// DEBUG
+// ═══════════════════════════════════════════════════════════════════
+function dlog(msg, data, type='info') {
+  const ts = new Date().toTimeString().slice(0,8);
+  if (DEBUG) console.log(`[SK ${ts}]`, msg, data !== undefined ? data : '');
+  const log = $('dbglog'); if (!log) return;
+  const d = document.createElement('div');
+  d.className = 'dl ' + (type==='err' ? 'derr' : type==='ok' ? 'dok' : 'dinfo');
+  const txt = data !== undefined ? ` → ${typeof data === 'object' ? JSON.stringify(data).slice(0,200) : data}` : '';
+  d.textContent = `${ts} ${msg}${txt}`;
+  log.appendChild(d);
+  if (log.children.length > 500) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+}
+
+function toggleDbg() {
+  DEBUG = !DEBUG;
+  localStorage.setItem('debug', DEBUG ? '1' : '');
+  $('dbg').classList.toggle('open', DEBUG);
+  $('dbgBtn').textContent = DEBUG ? 'Disable' : 'Enable';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// API — FETCH WRAPPERS
+// ═══════════════════════════════════════════════════════════════════
+async function apiGet(params = {}) {
+  if (!CFG.url) throw new Error('GAS URL not configured — go to Settings');
+  const url = CFG.url + '?' + new URLSearchParams(params).toString();
+  dlog('GET', params);
+  const res = await fetch(url, { method: 'GET', redirect: 'follow' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'API returned failure');
+  return data;
+}
+
+async function apiPost(body) {
+  if (!CFG.url) throw new Error('GAS URL not configured — go to Settings');
+  dlog('POST', body);
+  const res = await fetch(CFG.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body),
+    redirect: 'follow'
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  dlog('POST response', data, data.success ? 'ok' : 'err');
+  if (!data.success) throw new Error(data.error || 'API returned failure');
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NORMALIZE — maps sheet fields to JS object
+// Sheet schema: id|name|itemType|supplier|category|partCode|location|
+//   minQty|quantity|totalUsed|totalAdded|barcode|createdAt|updatedAt
+// ═══════════════════════════════════════════════════════════════════
+function normItem(i) {
+  const qty = Number(i.quantity) || 0;
+  const min = Number(i.minQty)   || 0;
+  return {
+    id:         String(i.id        || '').trim(),
+    name:       String(i.name      || '').trim(),
+    itemType:   String(i.itemType  || 'consumable').toLowerCase().trim(),
+    supplier:   String(i.supplier  || '').trim(),
+    category:   String(i.category  || '').trim(),
+    partCode:   String(i.partCode  || '').trim(),
+    location:   String(i.location  || '').trim(),
+    minQty:     min,
+    quantity:   qty,
+    totalUsed:  Number(i.totalUsed)  || 0,
+    totalAdded: Number(i.totalAdded) || 0,
+    barcode:    String(i.barcode   || '').trim(),
+    createdAt:  String(i.createdAt || ''),
+    updatedAt:  String(i.updatedAt || ''),
+    status:     qty <= 0 ? 'OUT' : (min > 0 && qty <= min) ? 'LOW' : 'OK'
+  };
+}
+
+function normTx(t) {
+  const rawType = String(t.type || t.transactionType || '').trim().toUpperCase();
+  const typeMap = {
+    ADD: 'ADD',
+    ADD_STOCK: 'ADD_STOCK',
+    BULK_ADD: 'BULK_ADD',
+    ISSUE: 'ISSUE',
+    USE: 'USE',
+    BULK_ISSUE: 'BULK_ISSUE',
+    RETURN_TO_VENDOR: 'RETURN_TO_VENDOR'
+  };
+  return {
+    id:            String(t.id || ''),
+    groupId:       String(t.groupId || ''),
+    itemId:        String(t.itemId || ''),
+    itemName:      String(t.itemName || t.itemId || ''),
+    type:          typeMap[rawType] || rawType,
+    quantity:      Number(t.quantity) || 0,
+    previousStock: Number(t.previousStock) || 0,
+    newStock:      Number(t.newStock) || 0,
+    technician:    String(t.technician || t.user || ''),
+    note:          String(t.note || ''),
+    transactionDate: String(t.transactionDate || t.date || ''),
+    createdDate:   String(t.createdDate || t.date || ''),
+    createdBy:     String(t.createdBy || '')
+  };
+}
+
+function txKind(type) {
+  if (type === 'ADD' || type === 'ADD_STOCK' || type === 'BULK_ADD') return 'add';
+  if (type === 'RETURN_TO_VENDOR') return 'return';
+  return 'issue';
+}
+
+function getLocalDateStamp() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function normRepair(r) {
+  return {
+    id:               String(r.id         || '').trim(),
+    receiptNo:        String(r.receiptNo   || r.receipt_number || r.Receipt_Number || '').trim(),
+    dateSent:         String(r.dateSent    || r.Date           || '').trim(),
+    machineName:      String(r.machineName || r.Machine_Name   || '').trim(),
+    componentName:    String(r.componentName || r.Component_Name || '').trim(),
+    partNumber:       String(r.partNumber  || r.Part_Number    || '').trim(),
+    problem:          String(r.problem     || r.Problem_Description || '').trim(),
+    sentTo:           String(r.sentTo      || r.Sent_To_Company || '').trim(),
+    status:           String(r.status      || r.Repair_Status  || 'Sent').trim(),
+    expectedReturn:   String(r.expectedReturn || r.Expected_Return_Date || '').trim(),
+    actualReturn:     String(r.actualReturn   || r.Actual_Return_Date   || '').trim(),
+    remarks:          String(r.remarks     || r.Remarks        || '').trim(),
+    issuedBy:         String(r.issuedBy    || r.Issued_By      || '').trim(),
+    createdAt:        String(r.createdAt   || '').trim()
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SYNC — getData with guard against empty results overwriting cache
+// ═══════════════════════════════════════════════════════════════════
+async function getData() {
+  if (_syncInProgress) { dlog('Sync already in progress, skipped'); return; }
+  _syncInProgress = true;
+  setStat('syncing');
+  dlog('Sync started');
+  try {
+    const data = await apiGet({ action: 'getData' });
+
+    // Guard: never overwrite existing data with empty result
+    if (Array.isArray(data.items) && data.items.length > 0) {
+      DB.items = data.items.map(normItem);
+    } else if (!DB.items.length) {
+      dlog('API returned 0 items', undefined, 'err');
+    }
+
+    if (Array.isArray(data.transactions) && data.transactions.length > 0) {
+      DB.transactions = data.transactions.map(normTx).map(t => {
+        if (!t.itemName || t.itemName === t.itemId) {
+          const match = DB.items.find(i => i.id === t.itemId);
+          if (match) t.itemName = match.name;
+        }
+        return t;
+      });
+    }
+
+    DB.activity     = Array.isArray(data.activity)     ? data.activity     : DB.activity;
+    DB.report       = Array.isArray(data.report)        ? data.report       : DB.report;
+    DB.stats        = data.stats || DB.stats;
+    DB.technicians  = Array.isArray(data.technicians)   ? data.technicians  : DB.technicians;
+
+    // Load repairs (separate endpoint or included in getData)
+    if (Array.isArray(data.repairs) && data.repairs.length > 0) {
+      DB.repairs = data.repairs.map(normRepair);
+    }
+    // If API supports separate repair fetch, try it
+    if (!data.repairs) {
+      try {
+        const rData = await apiGet({ action: 'getRepairs' });
+        if (Array.isArray(rData.repairs)) DB.repairs = rData.repairs.map(normRepair);
+      } catch(_) { /* repairs endpoint may not exist yet */ }
+    }
+
+    setStat('online');
+    $('sSync').textContent  = new Date().toLocaleTimeString();
+    $('sItems').textContent = DB.items.length;
+    $('sTx').textContent    = DB.transactions.length;
+    $('sTechs').textContent = DB.technicians.length;
+    if ($('sRep')) $('sRep').textContent = DB.repairs.length;
+    $('sStat').textContent  = '✓ Connected';
+    $('slbl').textContent   = 'Online';
+
+    dlog(`Sync OK — ${DB.items.length} items, ${DB.transactions.length} tx`, undefined, 'ok');
+
+    // Update UI without losing filter state
+    buildFilters();
+    buildTechDatalist();
+    renderPage();
+    updateAlertBadge();
+  } catch (err) {
+    setStat('error');
+    $('slbl').textContent  = 'Error';
+    $('sStat').textContent = '⚠ ' + err.message;
+    showToast('⚠ Sync failed: ' + err.message, 'error');
+    dlog('Sync FAILED', err.message, 'err');
+  } finally {
+    _syncInProgress = false;
+  }
+}
+
+async function manualSync() {
+  showToast('↻ Syncing…', 'info');
+  await getData();
+  if ($('sdot').classList.contains('online'))
+    showToast(`✅ Synced — ${DB.items.length} items`);
+}
+
+// Optimistic update: immediately update item in DB.items, then sync
+function updateItemLocally(id, patch) {
+  const idx = DB.items.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  DB.items[idx] = { ...DB.items[idx], ...patch };
+  const i = DB.items[idx];
+  const qty = i.quantity, min = i.minQty;
+  DB.items[idx].status = qty <= 0 ? 'OUT' : (min > 0 && qty <= min) ? 'LOW' : 'OK';
+}
+
+function setStat(s) {
+  const dot = $('sdot');
+  dot.className = 'sdot ' + s;
+  const lbl = $('slbl');
+  if (lbl) lbl.textContent = { online:'Online', syncing:'Syncing…', offline:'Offline', error:'Error' }[s] || s;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+const PAGES = {
+  overview:     { t:'Overview',              s:'Dashboard & KPIs' },
+  inventory:    { t:'Inventory',             s:'Manage items & stock' },
+  transactions: { t:'Transactions',          s:'Stock movement history' },
+  'bulk-issue': { t:'Bulk Issue',            s:'Issue multiple items at once' },
+  'bulk-add':   { t:'Bulk Add Stock',        s:'Add stock to multiple items' },
+  repairs:      { t:'Repair Register',       s:'Machine component repair tracking' },
+  reports:      { t:'Monthly Reports',       s:'Usage analytics & PDF export' },
+  activity:     { t:'Activity Log',          s:'All system events' },
+  receipts:     { t:'Receipts',              s:'Issue receipt history' },
+  settings:     { t:'Settings',              s:'Configure system' }
+};
+let curPage = 'overview';
+
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page)?.classList.add('active');
+  document.querySelectorAll('.ni').forEach(b => b.classList.toggle('active', b.dataset.p === page));
+  const m = PAGES[page] || {};
+  $('ptitle').textContent = m.t || page;
+  $('psub').textContent   = m.s || '';
+  curPage = page;
+  closeSB();
+  renderPage();
+}
+
+function renderPage() {
+  switch (curPage) {
+    case 'overview':     renderOv();       break;
+    case 'inventory':    renderInv();      break;
+    case 'transactions': renderTx();       break;
+    case 'bulk-issue':   initBulkIssue();  break;
+    case 'bulk-add':     initBulkAdd();    break;
+    case 'repairs':      renderRepairs();  break;
+    case 'reports':      renderRep();      break;
+    case 'activity':     renderAct();      break;
+    case 'receipts':     renderRcpPage();  break;
+    case 'settings':     renderSettings(); break;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OVERVIEW
+// ═══════════════════════════════════════════════════════════════════
+function renderOv() {
+  const s          = DB.stats;
+  const totalItems = DB.items.length;
+  const totalQty   = DB.items.reduce((a, i) => a + i.quantity, 0);
+  const low        = DB.items.filter(i => i.quantity > 0 && i.minQty > 0 && i.quantity <= i.minQty);
+  const out        = DB.items.filter(i => i.quantity <= 0);
+  const normal     = DB.items.filter(i => i.quantity > 0 && (i.minQty === 0 || i.quantity > i.minQty));
+
+  $('k-total').textContent  = s.totalItems  ?? totalItems;
+  $('k-normal').textContent = normal.length;
+  $('k-low').textContent    = low.length;
+  $('k-out').textContent    = out.length;
+  $('k-tsub').textContent   = `${totalItems} items tracked`;
+
+  // Repair KPIs
+  const rsent     = DB.repairs.filter(r => r.status === 'Sent').length;
+  const runder    = DB.repairs.filter(r => r.status === 'Under Repair').length;
+  const rrepaired = DB.repairs.filter(r => r.status === 'Repaired').length;
+  const rret      = DB.repairs.filter(r => r.status === 'Returned').length;
+  if ($('k-rsent'))    $('k-rsent').textContent    = rsent;
+  if ($('k-runder'))   $('k-runder').textContent   = runder;
+  if ($('k-rrepaired'))$('k-rrepaired').textContent = rrepaired;
+  if ($('k-rret'))     $('k-rret').textContent     = rret;
+
+  // Repair badge on sidebar
+  const activeCnt = rsent + runder;
+  const rBadge = $('repBadge');
+  if (rBadge) { rBadge.textContent = activeCnt; rBadge.style.display = activeCnt ? 'inline' : 'none'; }
+
+  // Transaction KPIs
+  const todayStr  = getLocalDateStamp();
+  const monthStr  = todayStr.slice(0, 7);
+  const isIssue   = t => t.type === 'ISSUE' || t.type === 'USE' || t.type === 'BULK_ISSUE';
+  const isAddT    = t => t.type === 'ADD'   || t.type === 'ADD_STOCK' || t.type === 'BULK_ADD';
+  const txToday   = DB.transactions.filter(t => isIssue(t) && String(t.transactionDate||'').startsWith(todayStr));
+  const txMonth   = DB.transactions.filter(t => isIssue(t) && String(t.transactionDate||'').startsWith(monthStr));
+  const addMonth  = DB.transactions.filter(t => isAddT(t)  && String(t.transactionDate||'').startsWith(monthStr));
+  if ($('k-today'))   $('k-today').textContent   = txToday.reduce((a,t)=>a+t.quantity,0);
+  if ($('k-todaydate'))$('k-todaydate').textContent = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+  if ($('k-used'))    $('k-used').textContent    = s.usedThisMonth ?? txMonth.reduce((a,t)=>a+t.quantity,0);
+  if ($('k-usedmo'))  $('k-usedmo').textContent  = new Date().toLocaleString('en-GB',{month:'long',year:'numeric'});
+  if ($('k-stock'))   $('k-stock').textContent   = s.totalQuantity ?? totalQty;
+  if ($('k-addedmo')) $('k-addedmo').textContent = addMonth.reduce((a,t)=>a+t.quantity,0);
+
+  const feed = $('ovAct');
+  feed.innerHTML = DB.activity.length
+    ? DB.activity.slice(0, 10).map(actHTML).join('')
+    : '<div style="color:var(--txt3);text-align:center;padding:20px">No activity yet</div>';
+
+  const criticals = out.slice(0, 8);
+  $('ovLow').innerHTML = !criticals.length
+    ? '<div style="color:var(--green);text-align:center;padding:20px;font-size:13px">✅ No items are out of stock</div>'
+    : criticals.map(i => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surf2);border-radius:8px;border:1px solid var(--bdr);border-left:3px solid var(--red);cursor:pointer" onclick="viewItem('${esc(i.id)}')">
+        <div>
+          <div style="font-weight:600;font-size:13px">${esc(i.name)}</div>
+          <div style="font-size:10px;font-family:var(--fm);color:var(--txt3)">${esc(i.category||'—')} · ${esc(i.location||'—')}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--fm);font-weight:700;font-size:15px;color:var(--red)">0</div>
+          <div style="font-size:10px;color:var(--txt3)">min: ${i.minQty}</div>
+        </div>
+      </div>`).join('');
+
+  renderUsageChart();
+  renderCatChart();
+}
+
+function calcUsedThisMonth() {
+  const m = getLocalDateStamp().slice(0, 7); // YYYY-MM
+  return DB.transactions
+    .filter(t => txKind(t.type) === 'issue' && String(t.transactionDate || '').startsWith(m))
+    .reduce((s, t) => s + t.quantity, 0);
+}
+
+function actHTML(a) {
+  const ico = { ADD_ITEM:'🆕', UPDATE_ITEM:'✏️', DELETE_ITEM:'🗑️', ADD_STOCK:'📥', ISSUE:'📤',
+    RETURN_TO_VENDOR:'↩️', BULK_ISSUE:'📦', BULK_ADD:'📦', LOW_STOCK:'⚠️', OUT_STOCK:'🔴' };
+  const col = { ADD_ITEM:'var(--gdim)', UPDATE_ITEM:'var(--bdim)', DELETE_ITEM:'var(--rdim)',
+    ADD_STOCK:'var(--gdim)', ISSUE:'var(--adim)', RETURN_TO_VENDOR:'var(--pdim)',
+    BULK_ISSUE:'var(--adim)', BULK_ADD:'var(--gdim)', LOW_STOCK:'var(--rdim)', OUT_STOCK:'var(--rdim)' };
+  let det = {};
+  try { det = typeof a.details === 'string' ? JSON.parse(a.details) : (a.details || {}); } catch(_) { det = { note: String(a.details || '') }; }
+  const name = det.name || det.note || a.itemId || '';
+  const desc = (a.action || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  const ts   = a.timestamp ? new Date(a.timestamp).toLocaleString() : '';
+  return `<div class="ait">
+    <div class="adot" style="background:${col[a.action]||'var(--surf3)'}">${ico[a.action]||'📋'}</div>
+    <div class="aline"></div>
+    <div>
+      <div class="adesc"><strong>${esc(desc)}</strong>${name ? ' — ' + esc(name) : ''}</div>
+      <div class="ameta">${esc(ts)}${a.user ? ' · ' + esc(a.user) : ''}</div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INVENTORY
+// ═══════════════════════════════════════════════════════════════════
+function renderInv() { filterInv(); }
+
+function filterInv() {
+  const q    = ($('invQ').value || '').toLowerCase();
+  const cat  = $('catF').value;
+  const loc  = $('locF').value;
+  const type = $('typeF').value;
+  const st   = $('stF').value;
+  $('invClr').style.display = q ? 'block' : 'none';
+
+  fItems = DB.items.filter(i => {
+    const mq = !q || [i.name, i.partCode, i.supplier, i.barcode, i.id, i.location, i.category].some(v => String(v || '').toLowerCase().includes(q));
+    const mc = !cat  || i.category  === cat;
+    const ml = !loc  || i.location  === loc;
+    const mt = !type || i.itemType  === type;
+    const ms = !st   || (st==='ok'  && i.quantity > i.minQty && i.quantity > 0)
+                     || (st==='low' && i.quantity > 0 && i.minQty > 0 && i.quantity <= i.minQty)
+                     || (st==='out' && i.quantity <= 0);
+    return mq && mc && ml && mt && ms;
+  });
+
+  fItems.sort((a, b) => {
+    let va = a[sCol] ?? '', vb = b[sCol] ?? '';
+    if (typeof va === 'number') return sAsc ? va - vb : vb - va;
+    va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+    return sAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
+  iPage = 1; paintInv(); invStats();
+}
+
+function paintInv() {
+  const tb = $('invTb');
+  const s  = (iPage - 1) * iPS;
+  const pg = fItems.slice(s, s + iPS);
+
+  if (!pg.length) {
+    tb.innerHTML = `<tr><td colspan="10" class="empty"><div class="eico">📦</div>${DB.items.length ? 'No matches found.' : 'No items yet — click Add Item to begin.'}</td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = pg.map(i => {
+    const out = i.quantity <= 0;
+    const low = !out && i.minQty > 0 && i.quantity <= i.minQty;
+    const rc  = out ? 'rout' : low ? 'rlow' : '';
+    const qc  = out ? 'var(--red)' : low ? 'var(--amber)' : 'var(--green)';
+    const stBadge = out
+      ? `<span class="badge bout">⊘ Out</span>`
+      : low
+      ? `<span class="badge blow">⚠ Low</span>`
+      : `<span class="badge bok">✓ OK</span>`;
+    const typeBadge = i.itemType === 'returnable'
+      ? `<span class="badge b-returnable">↩ Return</span>`
+      : `<span class="badge b-consumable">⚙ Use</span>`;
+
+    // Actions depend on item type
+    const actionBtns = i.itemType === 'returnable'
+      ? `<button class="btn btn-xs btn-success" onclick="openAddSt('${esc(i.id)}')">＋ Add</button>
+         <button class="btn btn-xs btn-purple"  onclick="openReturn('${esc(i.id)}')">↩ Return</button>`
+      : `<button class="btn btn-xs btn-success" onclick="openAddSt('${esc(i.id)}')">＋ Add</button>
+         <button class="btn btn-xs btn-danger"  onclick="openUse('${esc(i.id)}')">− Issue</button>`;
+
+    return `<tr class="${rc}">
+      <td class="nc" onclick="viewItem('${esc(i.id)}')" style="cursor:pointer;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(i.name)}">${esc(i.name)}</td>
+      <td><span class="bcat">${esc(i.category || '—')}</span></td>
+      <td class="mo" style="font-size:11px;color:var(--txt3)">${esc(i.partCode || '—')}</td>
+      <td style="font-size:12px;color:var(--txt2)">${esc(i.supplier || '—')}</td>
+      <td style="font-size:11px;color:var(--txt3)">${esc(i.location || '—')}</td>
+      <td>${typeBadge}</td>
+      <td class="mo" style="font-weight:700;color:${qc}">${i.quantity}</td>
+      <td class="mo" style="color:var(--txt3)">${i.minQty}</td>
+      <td>${stBadge}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:nowrap">
+          ${actionBtns}
+          <button class="btn btn-xs btn-secondary" onclick="editItem('${esc(i.id)}')" title="Edit">✏️</button>
+          <button class="btn btn-xs btn-secondary" onclick="askDel('${esc(i.id)}')"  title="Delete">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const tot = fItems.length, pgs = Math.ceil(tot / iPS) || 1;
+  $('pInfo').textContent = `Page ${iPage}/${pgs} (${tot} items)`;
+  $('pPrev').disabled = iPage <= 1;
+  $('pNext').disabled = iPage >= pgs;
+}
+
+function invStats() {
+  $('iCnt').textContent = fItems.length;
+  $('iLow').textContent = fItems.filter(i => i.quantity > 0 && i.minQty > 0 && i.quantity <= i.minQty).length;
+  $('iOut').textContent = fItems.filter(i => i.quantity <= 0).length;
+  $('iQty').textContent = fItems.reduce((s, i) => s + i.quantity, 0);
+}
+
+function sort(col) {
+  sAsc = sCol === col ? !sAsc : true;
+  sCol = col;
+  document.querySelectorAll('th[data-c]').forEach(th => {
+    th.classList.toggle('sorted', th.dataset.c === col);
+    const si = th.querySelector('.si');
+    if (si) si.textContent = th.dataset.c === col ? (sAsc ? '↑' : '↓') : '↕';
+  });
+  paintInv();
+}
+
+function chPg(d)    { iPage += d; paintInv(); }
+function chTxPg(d)  { txPage += d; paintTx(); }
+function chRepPg(d) { repPage += d; paintRepairs(); }
+function chPgSize() { iPS = Number($('pgSize').value) || 50; iPage = 1; paintInv(); }
+function clearInvQ(){ $('invQ').value = ''; filterInv(); }
+
+function buildFilters() {
+  const cats = [...new Set(DB.items.map(i => i.category).filter(Boolean))].sort();
+  const locs = [...new Set(DB.items.map(i => i.location).filter(Boolean))].sort();
+  const cf = $('catF'), lf = $('locF'), ll = $('locList');
+  const sv = { c: cf.value, l: lf.value };
+  cf.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
+  lf.innerHTML = '<option value="">All Locations</option>' + locs.map(l => `<option>${esc(l)}</option>`).join('');
+  if (ll) ll.innerHTML = locs.map(l => `<option value="${esc(l)}">`).join('');
+  cf.value = sv.c; lf.value = sv.l;
+  // Report filter
+  const repCat = $('repCat');
+  if (repCat) repCat.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
+  const mo = [...new Set(DB.report.map(r => r.month).filter(Boolean))].sort().reverse();
+  const rs = $('repMo');
+  if (rs) rs.innerHTML = '<option value="">All Months</option>' + mo.map(m => `<option>${m}</option>`).join('');
+}
+
+function buildTechDatalist() {
+  const names = DB.technicians.map(t => t.name).filter(Boolean);
+  ['techList', 'techListU'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TRANSACTIONS
+// ═══════════════════════════════════════════════════════════════════
+function renderTx() { filterTx(); }
+
+function filterTx() {
+  const q    = ($('txQ').value || '').toLowerCase();
+  const t    = $('txTF').value;
+  const df   = $('txDateF').value;
+  fTx = DB.transactions.filter(tx => {
+    const mq = !q  || [tx.itemName, tx.itemId, tx.technician, tx.note].some(v => String(v || '').toLowerCase().includes(q));
+    const mt = !t  || tx.type === t || (t === 'ADD' && txKind(tx.type) === 'add') || (t === 'ISSUE' && txKind(tx.type) === 'issue');
+    const md = !df || String(tx.transactionDate || '').startsWith(df);
+    return mq && mt && md;
+  });
+  // Sort newest first
+  fTx.sort((a, b) => new Date(b.transactionDate || b.createdDate) - new Date(a.transactionDate || a.createdDate));
+  txPage = 1; paintTx();
+}
+
+function paintTx() {
+  const tb = $('txTb');
+  const s  = (txPage - 1) * CFG.PS;
+  const pg = fTx.slice(s, s + CFG.PS);
+  if (!pg.length) {
+    tb.innerHTML = '<tr><td colspan="9" class="empty"><div class="eico">🔄</div>No matches</td></tr>';
+    return;
+  }
+  tb.innerHTML = pg.map(t => {
+    const kind  = txKind(t.type);
+    const isAdd = kind === 'add';
+    const isRet = kind === 'return';
+    const cls   = isAdd ? 'tx-add' : isRet ? 'tx-ret' : 'tx-use';
+    const sign  = isAdd ? '+' : '−';
+    const qclr  = isAdd ? 'var(--green)' : isRet ? 'var(--purple)' : 'var(--red)';
+    const txDate = t.transactionDate ? fmtDate(t.transactionDate) : '—';
+    const grpShort = t.groupId ? `<span style="font-family:var(--fm);font-size:9px;color:var(--txt3);background:var(--surf3);padding:1px 5px;border-radius:4px">${t.groupId.slice(-6)}</span>` : '';
+    return `<tr>
+      <td class="mo" style="font-size:11px">${esc(txDate)}</td>
+      <td class="nc" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.itemName)}">${esc(t.itemName)}</td>
+      <td><span class="${cls}">${esc(t.type)}</span></td>
+      <td class="mo" style="font-weight:700;color:${qclr}">${sign}${t.quantity}</td>
+      <td class="mo" style="color:var(--txt3)">${t.previousStock}</td>
+      <td class="mo" style="color:${qclr}">${t.newStock}</td>
+      <td style="font-size:12px">${esc(t.technician || '—')}</td>
+      <td style="font-size:11px;color:var(--txt3);max-width:140px;overflow:hidden;text-overflow:ellipsis" title="${esc(t.note)}">${esc(t.note || '')}</td>
+      <td>${grpShort}</td>
+    </tr>`;
+  }).join('');
+  const tot = fTx.length, pgs = Math.ceil(tot / CFG.PS) || 1;
+  $('txInfo').textContent = `Page ${txPage}/${pgs} (${tot})`;
+  $('txPrev').disabled = txPage <= 1;
+  $('txNext').disabled = txPage >= pgs;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// REPAIR REGISTER
+// ═══════════════════════════════════════════════════════════════════
+const REP_PS = 50;
+
+function repStatusBadge(s) {
+  const map = {
+    'Sent':        '<span class="rs-sent">📤 Sent</span>',
+    'Under Repair':'<span class="rs-under">🔨 Under Repair</span>',
+    'Repaired':    '<span class="rs-repaired">✔ Repaired</span>',
+    'Returned':    '<span class="rs-returned">↩ Returned</span>'
+  };
+  return map[s] || `<span class="bcat">${esc(s)}</span>`;
+}
+
+function renderRepairs() { filterRepairs(); }
+
+function filterRepairs() {
+  const q  = ($('repQ')?.value  || '').toLowerCase();
+  const st = $('repF')?.value   || '';
+  const df = $('repDateF')?.value || '';
+  fRepairs = DB.repairs.filter(r => {
+    const mq = !q  || [r.machineName, r.componentName, r.partNumber, r.sentTo, r.problem, r.receiptNo].some(v => String(v||'').toLowerCase().includes(q));
+    const ms = !st || r.status === st;
+    const md = !df || String(r.dateSent||'').startsWith(df);
+    return mq && ms && md;
+  });
+  fRepairs.sort((a, b) => new Date(b.dateSent||b.createdAt||0) - new Date(a.dateSent||a.createdAt||0));
+  repPage = 1;
+  paintRepairs();
+  repStats();
+}
+
+function paintRepairs() {
+  const tb = $('repTb2');
+  const s  = (repPage - 1) * REP_PS;
+  const pg = fRepairs.slice(s, s + REP_PS);
+  if (!pg.length) {
+    tb.innerHTML = `<tr><td colspan="10" class="empty"><div class="eico">🔧</div>${DB.repairs.length ? 'No matches found.' : 'No repair entries yet — click Add Repair Entry.'}</td></tr>`;
+    return;
+  }
+  tb.innerHTML = pg.map(r => {
+    const isActive  = r.status === 'Sent' || r.status === 'Under Repair';
+    const isReady   = r.status === 'Repaired';
+    const rowStyle  = isActive ? 'background:rgba(245,158,11,.03)' : isReady ? 'background:rgba(34,197,94,.03)' : '';
+    const dateStr   = r.dateSent ? new Date(r.dateSent).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const expStr    = r.expectedReturn ? new Date(r.expectedReturn).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '—';
+    const problemShort = r.problem.length > 50 ? r.problem.slice(0,50)+'…' : r.problem;
+    return `<tr style="${rowStyle}">
+      <td class="mo" style="font-size:11px;white-space:nowrap">${dateStr}</td>
+      <td class="nc" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.machineName)}">${esc(r.machineName||'—')}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="${esc(r.componentName)}">${esc(r.componentName||'—')}</td>
+      <td class="mo" style="font-size:11px;color:var(--txt3)">${esc(r.partNumber||'—')}</td>
+      <td style="font-size:11px;color:var(--txt2);max-width:140px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.problem)}">${esc(problemShort)}</td>
+      <td style="font-size:12px">${esc(r.sentTo||'—')}</td>
+      <td>${repStatusBadge(r.status)}</td>
+      <td class="mo" style="font-size:11px">${expStr}</td>
+      <td class="mo" style="font-size:10px;color:var(--txt3)">${esc(r.receiptNo||'—')}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:nowrap">
+          <button class="btn btn-xs btn-secondary" onclick="viewRepair('${esc(r.id)}')" title="View">👁</button>
+          <button class="btn btn-xs btn-cyan"      onclick="openRepairStatus('${esc(r.id)}')" title="Update Status" style="background:var(--bdim);color:var(--blue);border:1px solid rgba(59,130,246,.25)">🔄</button>
+          <button class="btn btn-xs btn-secondary" onclick="editRepair('${esc(r.id)}')" title="Edit">✏️</button>
+          <button class="btn btn-xs" onclick="showRepairReceipt('${esc(r.id)}')" title="Receipt" style="background:var(--gdim);color:var(--green);border:1px solid rgba(34,197,94,.25);padding:3px 8px;font-size:11px;border-radius:6px">🖨</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const tot = fRepairs.length, pgs = Math.ceil(tot / REP_PS) || 1;
+  $('repInfo').textContent = `Page ${repPage}/${pgs} (${tot})`;
+  $('repPrev').disabled = repPage <= 1;
+  $('repNext').disabled = repPage >= pgs;
+}
+
+function repStats() {
+  const all    = fRepairs.length;
+  const active = fRepairs.filter(r => r.status==='Sent'||r.status==='Under Repair').length;
+  const ready  = fRepairs.filter(r => r.status==='Repaired').length;
+  const done   = fRepairs.filter(r => r.status==='Returned').length;
+  if ($('repCntTotal'))  $('repCntTotal').textContent  = all;
+  if ($('repCntActive')) $('repCntActive').textContent = active;
+  if ($('repCntReady'))  $('repCntReady').textContent  = ready;
+  if ($('repCntDone'))   $('repCntDone').textContent   = done;
+}
+
+function openAddRepair() {
+  $('mRepairTitle').textContent = '🔧 Add Repair Entry';
+  $('rpDate').value       = todayISO();
+  $('rpMachine').value    = '';
+  $('rpComponent').value  = '';
+  $('rpPartNo').value     = '';
+  $('rpCompany').value    = '';
+  $('rpProblem').value    = '';
+  $('rpExpReturn').value  = '';
+  $('rpStatus').value     = 'Sent';
+  $('rpActReturn').value  = '';
+  $('rpIssuedBy').value   = CFG.user;
+  $('rpRemarks').value    = '';
+  $('rpRNo').value        = 'REP-' + Date.now().toString(36).toUpperCase();
+  $('rpId').value         = '';
+  openM('mRepair');
+  setTimeout(() => $('rpMachine').focus(), 120);
+}
+
+function editRepair(id) {
+  const r = DB.repairs.find(x => x.id === id);
+  if (!r) return;
+  $('mRepairTitle').textContent = '✏️ Edit Repair Entry';
+  $('rpDate').value       = r.dateSent     || '';
+  $('rpMachine').value    = r.machineName  || '';
+  $('rpComponent').value  = r.componentName|| '';
+  $('rpPartNo').value     = r.partNumber   || '';
+  $('rpCompany').value    = r.sentTo       || '';
+  $('rpProblem').value    = r.problem      || '';
+  $('rpExpReturn').value  = r.expectedReturn || '';
+  $('rpStatus').value     = r.status       || 'Sent';
+  $('rpActReturn').value  = r.actualReturn || '';
+  $('rpIssuedBy').value   = r.issuedBy     || '';
+  $('rpRemarks').value    = r.remarks      || '';
+  $('rpRNo').value        = r.receiptNo    || '';
+  $('rpId').value         = id;
+  openM('mRepair');
+}
+
+function viewRepair(id) {
+  const r = DB.repairs.find(x => x.id === id);
+  if (!r) return;
+  activeRepairId = id;
+  const dateStr    = r.dateSent    ? new Date(r.dateSent).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const expStr     = r.expectedReturn ? new Date(r.expectedReturn).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const actStr     = r.actualReturn   ? new Date(r.actualReturn).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  $('repairViewBody').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:17px;font-weight:700;margin-bottom:4px">${esc(r.componentName)}</div>
+          <div style="font-size:11px;color:var(--txt3);font-family:var(--fm)">${esc(r.receiptNo||r.id)}</div>
+        </div>
+        <div>${repStatusBadge(r.status)}</div>
+      </div>
+      <div class="fr fr2">
+        <div class="irow"><div class="il">Machine</div><div class="iv">${esc(r.machineName||'—')}</div></div>
+        <div class="irow"><div class="il">Part Number</div><div class="iv" style="font-family:var(--fm);font-size:13px">${esc(r.partNumber||'—')}</div></div>
+      </div>
+      <div class="irow"><div class="il">Problem Description</div><div class="iv" style="font-size:13px;white-space:pre-wrap">${esc(r.problem||'—')}</div></div>
+      <div class="fr fr2">
+        <div class="irow"><div class="il">Sent To</div><div class="iv">${esc(r.sentTo||'—')}</div></div>
+        <div class="irow"><div class="il">Date Sent</div><div class="iv">${dateStr}</div></div>
+      </div>
+      <div class="fr fr3">
+        <div class="irow"><div class="il">Expected Return</div><div class="iv">${expStr}</div></div>
+        <div class="irow"><div class="il">Actual Return</div><div class="iv">${actStr}</div></div>
+        <div class="irow"><div class="il">Issued By</div><div class="iv">${esc(r.issuedBy||'—')}</div></div>
+      </div>
+      ${r.remarks ? `<div class="irow"><div class="il">Remarks</div><div class="iv" style="font-size:13px">${esc(r.remarks)}</div></div>` : ''}
+    </div>`;
+  $('repViewEditBtn').onclick   = () => { closeM('mRepairView'); editRepair(id); };
+  $('repViewStatusBtn').onclick = () => { closeM('mRepairView'); openRepairStatus(id); };
+  $('repViewRcpBtn').onclick    = () => { closeM('mRepairView'); showRepairReceipt(id); };
+  openM('mRepairView');
+}
+
+function openRepairStatus(id) {
+  const r = DB.repairs.find(x => x.id === id);
+  if (!r) return;
+  activeRepairId = id;
+  $('rsId').value       = id;
+  $('rsStatus').value   = r.status || 'Sent';
+  $('rsActReturn').value= r.actualReturn || '';
+  $('rsRemarks').value  = r.remarks || '';
+  $('rsInfo').innerHTML = `<div class="il">Component</div><div class="iv">${esc(r.componentName)} — ${esc(r.machineName)}</div>`;
+  openM('mRepairStatus');
+}
+
+async function saveRepair(andReceipt = false) {
+  const machine   = $('rpMachine').value.trim();
+  const component = $('rpComponent').value.trim();
+  const company   = $('rpCompany').value.trim();
+  const problem   = $('rpProblem').value.trim();
+  if (!machine)   { showToast('⚠ Machine name required',   'error'); return; }
+  if (!component) { showToast('⚠ Component name required', 'error'); return; }
+  if (!company)   { showToast('⚠ Sent-to company required','error'); return; }
+  if (!problem)   { showToast('⚠ Problem description required','error'); return; }
+
+  const id  = $('rpId').value;
+  const btn = $('rpBtn'); btn.disabled = true; btn.textContent = '⏳…';
+  const body = {
+    action:         id ? 'updateRepair' : 'addRepair',
+    id:             id || undefined,
+    receiptNo:      $('rpRNo').value.trim(),
+    dateSent:       $('rpDate').value || todayISO(),
+    machineName:    machine,
+    componentName:  component,
+    partNumber:     $('rpPartNo').value.trim(),
+    sentTo:         company,
+    problem:        problem,
+    status:         $('rpStatus').value,
+    expectedReturn: $('rpExpReturn').value || '',
+    actualReturn:   $('rpActReturn').value || '',
+    issuedBy:       $('rpIssuedBy').value.trim() || CFG.user,
+    remarks:        $('rpRemarks').value.trim(),
+    user:           CFG.user
+  };
+  Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+
+  try {
+    const res = await apiPost(body);
+    const savedRepair = {
+      ...body,
+      id: res.id || id || ('LOCAL-' + Date.now()),
+      createdAt: new Date().toISOString()
+    };
+    if (id) {
+      const idx = DB.repairs.findIndex(r => r.id === id);
+      if (idx >= 0) DB.repairs[idx] = normRepair(savedRepair);
+    } else {
+      DB.repairs.push(normRepair(savedRepair));
+    }
+    closeM('mRepair');
+    showToast(id ? '✅ Repair entry updated' : '✅ Repair entry added');
+    renderRepairs();
+    renderOv();
+    if (andReceipt) showRepairReceiptFromData(normRepair(savedRepair));
+    getData();
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+    dlog('saveRepair failed', e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Save Entry';
+  }
+}
+
+async function saveRepairAndReceipt() { await saveRepair(true); }
+
+async function submitRepairStatus() {
+  const id      = $('rsId').value;
+  const status  = $('rsStatus').value;
+  const actRet  = $('rsActReturn').value;
+  const remarks = $('rsRemarks').value.trim();
+  const btn = $('rsBtn'); btn.disabled = true; btn.textContent = '⏳…';
+  try {
+    await apiPost({ action: 'updateRepair', id, status, actualReturn: actRet, remarks, user: CFG.user });
+    const r = DB.repairs.find(x => x.id === id);
+    if (r) { r.status = status; r.actualReturn = actRet; r.remarks = remarks; }
+    closeM('mRepairStatus');
+    showToast(`✅ Status updated to: ${status}`);
+    renderRepairs(); renderOv();
+    getData();
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '✅ Update Status'; }
+}
+
+// ── REPAIR RECEIPT ──
+function buildRepairReceipt(r) {
+  return {
+    receiptNo:     r.receiptNo || 'REP-' + Date.now().toString(36).toUpperCase(),
+    dateSent:      r.dateSent,
+    machineName:   r.machineName,
+    componentName: r.componentName,
+    partNumber:    r.partNumber,
+    problem:       r.problem,
+    sentTo:        r.sentTo,
+    expectedReturn:r.expectedReturn,
+    status:        r.status,
+    issuedBy:      r.issuedBy || CFG.user,
+    facility:      CFG.fac
+  };
+}
+
+function repairRcpHTML(d) {
+  const fmt = v => v ? new Date(v).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const ds  = fmt(d.dateSent);
+  const exp = fmt(d.expectedReturn);
+  const act = fmt(d.actualReturn);
+  const genDt = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+  const statusColors = {
+    'Sent':         {bg:'#eff6ff',color:'#1d4ed8'},
+    'Under Repair': {bg:'#fffbeb',color:'#b45309'},
+    'Repaired':     {bg:'#f0fdf4',color:'#15803d'},
+    'Returned':     {bg:'#f5f3ff',color:'#7c3aed'}
+  };
+  const sc = statusColors[d.status] || {bg:'#f1f5f9',color:'#475569'};
+  const facility = esc(d.facility || CFG.facility || 'Plant Maintenance');
+
+  return `<div class="rrcard">
+
+    <!-- HEADER BANNER -->
+    <div class="rr-banner">
+      <div>
+        <div class="rr-banner-title">Repair Dispatch Receipt</div>
+        <div class="rr-banner-sub">${facility}</div>
+      </div>
+      <div class="rr-banner-rno">
+        <div class="rr-banner-rno-label">Receipt No.</div>
+        <div class="rr-banner-rno-val">${esc(d.receiptNo||'—')}</div>
+      </div>
+    </div>
+
+    <!-- META ROW -->
+    <div class="rr-meta">
+      <div class="rr-meta-cell">
+        <div class="rr-meta-label">Date Dispatched</div>
+        <div class="rr-meta-val">${ds}</div>
+      </div>
+      <div class="rr-meta-cell">
+        <div class="rr-meta-label">Expected Return</div>
+        <div class="rr-meta-val">${exp}</div>
+      </div>
+      <div class="rr-meta-cell">
+        <div class="rr-meta-label">Current Status</div>
+        <div class="rr-meta-val">
+          <span class="rr-status-badge" style="background:${sc.bg};color:${sc.color}">${esc(d.status||'Sent')}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MACHINE & COMPONENT -->
+    <div class="rr-section-hd">Equipment Details</div>
+    <div class="rr-fields">
+      <div class="rr-field">
+        <div class="rr-field-label">Machine Name</div>
+        <div class="rr-field-val">${esc(d.machineName||'—')}</div>
+      </div>
+      <div class="rr-field">
+        <div class="rr-field-label">Component / Part Name</div>
+        <div class="rr-field-val" style="font-weight:800">${esc(d.componentName||'—')}</div>
+      </div>
+      <div class="rr-field">
+        <div class="rr-field-label">Part Number / Code</div>
+        <div class="rr-field-val mono">${esc(d.partNumber||'—')}</div>
+      </div>
+      <div class="rr-field">
+        <div class="rr-field-label">Issued By</div>
+        <div class="rr-field-val">${esc(d.issuedBy||CFG.user||'—')}</div>
+      </div>
+    </div>
+
+    <!-- SERVICE DETAILS -->
+    <div class="rr-section-hd">Service Details</div>
+    <div class="rr-fields">
+      <div class="rr-field full">
+        <div class="rr-field-label">Problem Description</div>
+        <div class="rr-field-val" style="white-space:pre-wrap;min-height:36px">${esc(d.problem||'—')}</div>
+      </div>
+      <div class="rr-field full">
+        <div class="rr-field-label">Sent To (Service Company / Workshop)</div>
+        <div class="rr-field-val" style="font-size:14px;font-weight:800">${esc(d.sentTo||'—')}</div>
+      </div>
+      ${d.remarks ? `<div class="rr-field full">
+        <div class="rr-field-label">Remarks / Notes</div>
+        <div class="rr-field-val" style="white-space:pre-wrap">${esc(d.remarks)}</div>
+      </div>` : ''}
+      ${d.actualReturn ? `<div class="rr-field full">
+        <div class="rr-field-label">Actual Return Date</div>
+        <div class="rr-field-val">${act}</div>
+      </div>` : ''}
+    </div>
+
+    <!-- SIGNATURES -->
+    <div class="rr-section-hd">Authorisation &amp; Acknowledgement</div>
+    <div class="rr-sig">
+      <div class="rr-sig-cell">
+        <div class="rr-sig-line"></div>
+        <div class="rr-sig-name">${esc(d.issuedBy||CFG.user||'Store Incharge')}</div>
+        <div class="rr-sig-role">Issued By / Store Incharge</div>
+      </div>
+      <div class="rr-sig-cell">
+        <div class="rr-sig-line"></div>
+        <div class="rr-sig-name">${esc(d.sentTo||'Service Company')}</div>
+        <div class="rr-sig-role">Received By (Company Rep.)</div>
+      </div>
+      <div class="rr-sig-cell">
+        <div class="rr-sig-line"></div>
+        <div class="rr-sig-name">Maintenance Head</div>
+        <div class="rr-sig-role">Approved By</div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="rr-ftr">
+      <div class="rr-ftr-left">StoreKeeper Pro v9 &nbsp;·&nbsp; ${facility} &nbsp;·&nbsp; Repair Dispatch Document</div>
+      <div class="rr-ftr-right">Generated: ${genDt}</div>
+    </div>
+
+  </div>`;
+}
+
+function showRepairReceipt(id) {
+  const r = DB.repairs.find(x => x.id === id);
+  if (!r) return;
+  showRepairReceiptFromData(r);
+}
+
+function showRepairReceiptFromData(r) {
+  const d = buildRepairReceipt(r);
+  $('repairRcpContent').innerHTML = repairRcpHTML(d);
+  $('repairOverlay').dataset.rno  = d.receiptNo;
+  $('repairOverlay').dataset.machine = d.machineName;
+  $('repairOverlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeRepairOverlay() {
+  $('repairOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function downloadRepairPdf() {
+  const el  = $('repairRcpContent');
+  const rno = $('repairOverlay').dataset.rno || 'Repair_Receipt';
+  const mach= $('repairOverlay').dataset.machine || '';
+  const name = `Repair_Receipt_${rno}_${mach.replace(/\s+/g,'_')}.pdf`.replace(/[^a-zA-Z0-9_\-\.]/g,'_');
+  const opt = {
+    margin: [8,8,8,8], filename: name,
+    image: { type:'jpeg', quality:0.98 },
+    html2canvas: { scale:2, useCORS:true, logging:false },
+    jsPDF: { unit:'mm', format:'a4', orientation:'portrait' }
+  };
+  showToast('⏳ Generating PDF…', 'info');
+  html2pdf().set(opt).from(el).save().then(() => showToast(`✅ Saved: ${name}`, 'ok'));
+}
+
+function printRepairRcp() {
+  const content = $('repairRcpContent').innerHTML;
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><title>Repair Receipt</title><style>
+    @page { size: A4 portrait; margin: 14mm 16mm; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body { background:#fff; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    /* layout wrapper */
+    .rrcard{background:#fff;color:#111;font-family:'Arial',sans-serif;width:100%;border:2px solid #1e293b}
+    /* banner */
+    .rr-banner{background:#1e293b;color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+    .rr-banner-title{font-size:17px;font-weight:900;letter-spacing:2px;text-transform:uppercase}
+    .rr-banner-sub{font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.7;margin-top:3px}
+    .rr-banner-rno{text-align:right}
+    .rr-banner-rno-label{font-size:8px;letter-spacing:2px;opacity:.7;text-transform:uppercase}
+    .rr-banner-rno-val{font-size:15px;font-weight:900;font-family:monospace;color:#f59e0b;margin-top:2px}
+    /* meta row */
+    .rr-meta{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid #1e293b}
+    .rr-meta-cell{padding:10px 16px;border-right:1px solid #e5e7eb}
+    .rr-meta-cell:last-child{border-right:none}
+    .rr-meta-label{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:3px}
+    .rr-meta-val{font-size:12px;font-weight:700;color:#111}
+    /* section heading */
+    .rr-section-hd{background:#f8fafc;padding:7px 16px;font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#475569;border-bottom:1px solid #e5e7eb;border-top:1px solid #e5e7eb}
+    /* fields grid */
+    .rr-fields{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e5e7eb}
+    .rr-field{padding:10px 16px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
+    .rr-field:nth-child(2n){border-right:none}
+    .rr-field.full{grid-column:1/-1;border-right:none}
+    .rr-field-label{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:4px}
+    .rr-field-val{font-size:12px;font-weight:600;color:#111;line-height:1.4}
+    .rr-field-val.mono{font-family:monospace;font-size:11px}
+    /* status badge */
+    .rr-status-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.5px}
+    /* signatures */
+    .rr-sig{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid #1e293b}
+    .rr-sig-cell{padding:16px;border-right:1px solid #e5e7eb;text-align:center}
+    .rr-sig-cell:last-child{border-right:none}
+    .rr-sig-line{border-bottom:1.5px solid #333;height:44px;margin-bottom:6px}
+    .rr-sig-name{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#444;margin-top:4px}
+    .rr-sig-role{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px}
+    /* footer */
+    .rr-ftr{background:#f8fafc;padding:8px 16px;display:flex;justify-content:space-between;align-items:center}
+    .rr-ftr-left{font-size:8px;color:#888;letter-spacing:.5px}
+    .rr-ftr-right{font-size:8px;color:#888;font-family:monospace}
+  </style></head><body>${content}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 500);
+}
+
+function exportRepairs() {
+  const rows = [
+    ['ID','Receipt No','Date Sent','Machine','Component','Part No','Problem','Sent To','Status','Expected Return','Actual Return','Issued By','Remarks'],
+    ...DB.repairs.map(r => [r.id,r.receiptNo,r.dateSent,r.machineName,r.componentName,r.partNumber,r.problem,r.sentTo,r.status,r.expectedReturn,r.actualReturn,r.issuedBy,r.remarks])
+  ];
+  xlsxExport(rows, 'repair_register');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// REPORTS
+// ═══════════════════════════════════════════════════════════════════
+function renderRep() {
+  const mo  = $('repMo')?.value  || '';
+  const cat = $('repCat')?.value || '';
+  let d = DB.report;
+  if (mo)  d = d.filter(r => r.month === mo);
+  if (cat) d = d.filter(r => {
+    const item = DB.items.find(i => i.id === r.itemId || i.name === r.itemName);
+    return item ? item.category === cat : false;
+  });
+
+  const tb = $('repTb');
+  tb.innerHTML = !d.length
+    ? '<tr><td colspan="6" class="empty"><div class="eico">📈</div>No report data yet</td></tr>'
+    : d.map(r => {
+        const used = Number(r.totalUsed) || 0;
+        const added = Number(r.totalAdded) || 0;
+        const net = added - used;
+        const item = DB.items.find(i => i.id === r.itemId);
+        const catLabel = item ? item.category : '—';
+        return `<tr>
+          <td class="mo">${esc(r.month)}</td>
+          <td class="nc">${esc(r.itemName)}</td>
+          <td><span class="bcat">${esc(catLabel)}</span></td>
+          <td class="mo" style="color:var(--red)">−${used}</td>
+          <td class="mo" style="color:var(--green)">+${added}</td>
+          <td class="mo" style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:700">${net>=0?'+':''}${net}</td>
+        </tr>`;
+      }).join('');
+
+  // Top 10
+  const grp = {};
+  DB.report.forEach(r => { grp[r.itemName] = (grp[r.itemName] || 0) + (Number(r.totalUsed) || 0); });
+  const top = Object.entries(grp).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  $('top10').innerHTML = top.length
+    ? top.map(([n, u], idx) => {
+        const pct = top[0][1] > 0 ? (u / top[0][1] * 100) : 0;
+        return `<div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:11px;font-weight:600">${idx+1}. ${esc(n)}</span>
+            <span style="font-size:11px;color:var(--txt2);font-family:var(--fm)">${u}</span>
+          </div>
+          <div style="height:4px;background:var(--bdr);border-radius:99px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--amber);border-radius:99px;transition:width .4s"></div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--txt3);font-size:12px">No usage data yet</div>';
+
+  renderMoChart(d);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTIVITY
+// ═══════════════════════════════════════════════════════════════════
+function renderAct() { filterAct(); }
+
+function filterAct() {
+  const q  = ($('actQ')?.value || '').toLowerCase();
+  const t  = $('actTF')?.value || '';
+  const df = $('actDateF')?.value || '';
+  let a = DB.activity;
+  if (t)  a = a.filter(x => x.action === t);
+  if (q)  a = a.filter(x => JSON.stringify(x).toLowerCase().includes(q));
+  if (df) a = a.filter(x => String(x.timestamp || '').startsWith(df));
+  const feed = $('actFeed');
+  if (!feed) return;
+  feed.innerHTML = a.length
+    ? a.slice(0, 300).map(actHTML).join('')
+    : '<div style="text-align:center;padding:40px;color:var(--txt3)">No activity matches.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════════
+function renderSettings() {
+  $('gasUrl').value   = CFG.url;
+  $('unInput').value  = CFG.user;
+  $('facInput').value = CFG.fac;
+  renderTechList();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RECEIPTS
+// ═══════════════════════════════════════════════════════════════════
+function loadRcps()  { try { RECEIPTS = JSON.parse(localStorage.getItem('sk_rcps') || '[]'); } catch(_) { RECEIPTS = []; } }
+function saveRcps()  {
+  RECEIPTS = RECEIPTS.slice(-200);
+  try { localStorage.setItem('sk_rcps', JSON.stringify(RECEIPTS)); } catch(_) {}
+  const b = $('rcpBadge');
+  if (b) { b.style.display = RECEIPTS.length ? 'inline' : 'none'; b.textContent = RECEIPTS.length; }
+}
+
+function renderRcpPage() {
+  const q = ($('rcpQ')?.value || '').toLowerCase();
+  let r = RECEIPTS.slice().reverse();
+  if (q) r = r.filter(x => JSON.stringify(x).toLowerCase().includes(q));
+  $('rcpList').innerHTML = !r.length
+    ? '<div style="text-align:center;padding:48px;color:var(--txt3)"><div style="font-size:42px;margin-bottom:10px;opacity:.3">🧾</div>No receipts yet.</div>'
+    : r.map(x => `
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;font-size:14px">${esc(x.title || x.items?.[0]?.name || x.itemName || 'Receipt')}</div>
+          <div style="font-size:11px;font-family:var(--fm);color:var(--txt3);margin-top:4px">
+            ${esc(x.rno)} · ${esc(x.date)} · To: ${esc(x.issuedTo || x.technician || '—')}
+            · Items: ${x.items ? x.items.length : 1}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="viewRcp('${esc(x.rno)}')">👁 View</button>
+          <button class="btn btn-primary btn-sm"   onclick="printRcpById('${esc(x.rno)}')">🖨️ Print</button>
+        </div>
+      </div>`).join('');
+}
+
+function filterRcp() { renderRcpPage(); }
+function clearRcp()  { if (!confirm('Clear all receipt history?')) return; RECEIPTS = []; saveRcps(); renderRcpPage(); }
+
+function viewRcp(rno) {
+  const r = RECEIPTS.find(x => x.rno === rno);
+  if (!r) return;
+  curRcp = r;
+  $('mRcpBody').innerHTML = rcpHTML(r);
+  openM('mRcp');
+}
+
+function printRcpById(rno) {
+  const r = RECEIPTS.find(x => x.rno === rno);
+  if (r) { curRcp = r; doPrint(rcpHTML(r)); }
+}
+
+function buildRcp(item, qty, issuedTo, note, prev, nxt, txDate) {
+  return {
+    rno:       'RCT-' + Date.now().toString(36).toUpperCase(),
+    date:      fmtDate(txDate || new Date().toISOString()),
+    facility:  CFG.fac,
+    issuedBy:  CFG.user,
+    itemName:  item.name,
+    itemId:    item.id,
+    partCode:  item.partCode,
+    location:  item.location,
+    category:  item.category,
+    supplier:  item.supplier,
+    issuedTo,
+    note:      note || '',
+    prevStock: prev,
+    newStock:  nxt,
+    qty,
+    items:     [{ name: item.name, qty, partCode: item.partCode }]
+  };
+}
+
+function buildBulkRcp(items, technician, desc, txDate, groupId) {
+  return {
+    rno:      'RCT-' + Date.now().toString(36).toUpperCase(),
+    date:     fmtDate(txDate || new Date().toISOString()),
+    facility: CFG.fac,
+    issuedBy: CFG.user,
+    issuedTo: technician,
+    title:    `Bulk Issue — ${technician}`,
+    note:     desc || '',
+    groupId,
+    items,
+    qty:      items.reduce((s, i) => s + i.qty, 0)
+  };
+}
+
+function rcpHTML(r) {
+  const isAdd    = r.type === 'add';
+  const isBulk   = r.items && r.items.length > 1;
+  const genDt    = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+  const issuedTo = esc(r.issuedTo || r.technician || '—');
+  const issuedBy = esc(r.issuedBy || CFG.user || '—');
+
+  // Items section
+  const itemsSection = isBulk
+    ? `<div class="rsec-hd">${isAdd ? 'Items Added to Stock' : 'Items Issued'}</div>
+       <div class="ritems">
+         <div class="ritem-row hdr">
+           <div class="ritem-cell bold">Item Name</div>
+           <div class="ritem-cell bold center">Part Code</div>
+           <div class="ritem-cell bold center">Qty</div>
+         </div>
+         ${r.items.map((i,idx) => `
+           <div class="ritem-row" style="${idx%2===1?'background:#f9fafb':''}">
+             <div class="ritem-cell" style="font-weight:600">${esc(i.name)}</div>
+             <div class="ritem-cell center" style="font-family:monospace;font-size:10px;color:#888">${esc(i.partCode||'—')}</div>
+             <div class="ritem-cell center bold">${i.qty}</div>
+           </div>`).join('')}
+       </div>`
+    : `<div class="rsec-hd">${isAdd ? 'Item Added to Stock' : 'Item Details'}</div>
+       <div class="rfields">
+         <div class="rfield full">
+           <div class="rfield-label">Item Name</div>
+           <div class="rfield-val" style="font-size:14px;font-weight:800">${esc(r.itemName||'—')}</div>
+         </div>
+         <div class="rfield">
+           <div class="rfield-label">Part Code</div>
+           <div class="rfield-val mono">${esc(r.partCode||'—')}</div>
+         </div>
+         <div class="rfield">
+           <div class="rfield-label">Category</div>
+           <div class="rfield-val">${esc(r.category||'—')}</div>
+         </div>
+         <div class="rfield">
+           <div class="rfield-label">Location / Bin</div>
+           <div class="rfield-val">${esc(r.location||'—')}</div>
+         </div>
+         <div class="rfield">
+           <div class="rfield-label">Supplier</div>
+           <div class="rfield-val">${esc(r.supplier||r.issuedTo||'—')}</div>
+         </div>
+         <div class="rfield">
+           <div class="rfield-label">Stock Before ${isAdd?'Addition':'Issue'}</div>
+           <div class="rfield-val">${r.prevStock ?? '—'}</div>
+         </div>
+         <div class="rfield">
+           <div class="rfield-label">Stock After ${isAdd?'Addition':'Issue'}</div>
+           <div class="rfield-val" style="color:${(!isAdd && r.newStock===0)?'#dc2626':'#111'}">${r.newStock ?? '—'}</div>
+         </div>
+       </div>`;
+
+  return `<div class="rcard">
+
+    <!-- HEADER BANNER -->
+    <div class="rhdr">
+      <div>
+        <div class="rtitle">${esc(r.facility||'Plant Maintenance')}</div>
+        <div class="rsub">${isAdd ? 'Stock Addition Receipt' : 'Material Issue Receipt'}</div>
+      </div>
+      <div class="rno">
+        <div class="rno-label">Receipt No.</div>
+        <div class="rno-val">${esc(r.rno)}</div>
+      </div>
+    </div>
+
+    <!-- META ROW -->
+    <div class="rmeta">
+      <div class="rmeta-cell">
+        <div class="rmeta-label">${isAdd ? 'Date Added' : 'Date of Issue'}</div>
+        <div class="rmeta-val">${esc(r.date)}</div>
+      </div>
+      <div class="rmeta-cell">
+        <div class="rmeta-label">${isAdd ? 'Supplier' : 'Issued To'}</div>
+        <div class="rmeta-val" style="font-weight:800">${isAdd ? esc(r.supplier||'—') : issuedTo}</div>
+      </div>
+      <div class="rmeta-cell">
+        <div class="rmeta-label">${isAdd ? 'Total Qty Added' : 'Total Qty Issued'}</div>
+        <div class="rmeta-val" style="font-size:18px;font-weight:900;color:#1e293b">${r.qty}</div>
+      </div>
+    </div>
+
+    <!-- ITEMS -->
+    ${itemsSection}
+
+    <!-- ISSUE DETAILS -->
+    <div class="rsec-hd">${isAdd ? 'Addition Details' : 'Issue Details'}</div>
+    <div class="rfields">
+      <div class="rfield">
+        <div class="rfield-label">${isAdd ? 'Added By' : 'Issued By'}</div>
+        <div class="rfield-val">${issuedBy}</div>
+      </div>
+      <div class="rfield">
+        <div class="rfield-label">Purpose / Note</div>
+        <div class="rfield-val">${esc(r.note||'—')}</div>
+      </div>
+    </div>
+
+    <!-- TOTAL BAR -->
+    <div class="rtot">
+      <div>
+        <div class="rtot-label">${isAdd ? 'Total Quantity Added' : 'Total Quantity Issued'}</div>
+      </div>
+      <div class="rtot-val">${r.qty} units</div>
+    </div>
+
+    <!-- SIGNATURES -->
+    <div class="rsec-hd">Authorisation &amp; Acknowledgement</div>
+    <div class="rsig">
+      <div class="rsig-cell">
+        <div class="rsig-line"></div>
+        <div class="rsig-name">${issuedBy}</div>
+        <div class="rsig-role">${isAdd ? 'Added By / Store Incharge' : 'Issued By / Store Incharge'}</div>
+      </div>
+      <div class="rsig-cell">
+        <div class="rsig-line"></div>
+        <div class="rsig-name">${isAdd ? esc(r.supplier||'—') : issuedTo}</div>
+        <div class="rsig-role">${isAdd ? 'Supplier' : 'Received By (Technician)'}</div>
+      </div>
+      <div class="rsig-cell">
+        <div class="rsig-line"></div>
+        <div class="rsig-name">Maintenance Head</div>
+        <div class="rsig-role">Approved By</div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="rftr">
+      <div class="rftr-left">StoreKeeper Pro v9 &nbsp;·&nbsp; ${esc(r.facility||'Plant')} &nbsp;·&nbsp; Material Issue Document</div>
+      <div class="rftr-right">Generated: ${genDt}</div>
+    </div>
+
+  </div>`;
+}
+
+function printRcp() { if (curRcp) doPrint(rcpHTML(curRcp)); }
+function doPrint(html) {
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><title>Issue Receipt</title><style>
+    @page { size: A4 portrait; margin: 14mm 16mm; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#fff;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .rcard{background:#fff;color:#111;font-family:'Arial',sans-serif;width:100%;border:2px solid #1e293b}
+    .rhdr{background:#1e293b;color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+    .rtitle{font-size:17px;font-weight:900;letter-spacing:2px;text-transform:uppercase}
+    .rsub{font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.7;margin-top:3px}
+    .rno{text-align:right}
+    .rno-label{font-size:8px;letter-spacing:2px;opacity:.7;text-transform:uppercase}
+    .rno-val{font-size:14px;font-weight:900;font-family:monospace;color:#f59e0b;margin-top:2px}
+    .rmeta{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid #1e293b}
+    .rmeta-cell{padding:10px 16px;border-right:1px solid #e5e7eb}
+    .rmeta-cell:last-child{border-right:none}
+    .rmeta-label{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:3px}
+    .rmeta-val{font-size:12px;font-weight:700;color:#111}
+    .rsec-hd{background:#f8fafc;padding:7px 16px;font-size:8px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#475569;border-bottom:1px solid #e5e7eb;border-top:1px solid #e5e7eb}
+    .rfields{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e5e7eb}
+    .rfield{padding:10px 16px;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
+    .rfield:nth-child(2n){border-right:none}
+    .rfield.full{grid-column:1/-1;border-right:none}
+    .rfield-label{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:4px}
+    .rfield-val{font-size:12px;font-weight:600;color:#111;line-height:1.4}
+    .rfield-val.mono{font-family:monospace;font-size:11px}
+    .ritems{padding:0}
+    .ritem-row{display:grid;grid-template-columns:1fr auto auto;gap:0;border-bottom:1px solid #f0f0f0}
+    .ritem-row.hdr{background:#f8fafc}
+    .ritem-cell{padding:8px 16px;font-size:11px}
+    .ritem-cell.bold{font-weight:700}
+    .ritem-cell.center{text-align:center}
+    .rtot{background:#1e293b;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:900}
+    .rtot-label{letter-spacing:2px;text-transform:uppercase;font-size:9px;opacity:.8}
+    .rtot-val{font-size:22px;font-weight:900;color:#f59e0b}
+    .rsig{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid #1e293b}
+    .rsig-cell{padding:16px;border-right:1px solid #e5e7eb;text-align:center}
+    .rsig-cell:last-child{border-right:none}
+    .rsig-line{border-bottom:1.5px solid #333;height:44px;margin-bottom:6px}
+    .rsig-name{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#444;margin-top:4px}
+    .rsig-role{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px}
+    .rftr{background:#f8fafc;padding:8px 16px;display:flex;justify-content:space-between;align-items:center}
+    .rftr-left{font-size:8px;color:#888;letter-spacing:.5px}
+    .rftr-right{font-size:8px;color:#888;font-family:monospace}
+  </style></head><body>${html}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ADD / EDIT ITEM MODAL
+// ═══════════════════════════════════════════════════════════════════
+function updateTypeNote() {
+  const t = $('fType').value;
+  const note = $('fTypeNote');
+  if (t === 'consumable') {
+    note.textContent = '⚙️ Consumable: This item will be permanently consumed when issued to technicians (bearings, fuses, sensors, etc.)';
+  } else {
+    note.textContent = '↩️ Returnable: This item is stored temporarily and will be returned to vendor (trial parts, borrowed equipment, etc.)';
+  }
+}
+
+function openAdd() {
+  $('mItemTitle').textContent = 'Add New Item';
+  $('fNm').value = ''; $('fCat').value = 'General'; $('fPC').value = '';
+  $('fSup').value = ''; $('fLoc').value = ''; $('fType').value = 'consumable';
+  $('fQty').value = '0'; $('fMin').value = '2'; $('fBC').value = '';
+  $('fQty').disabled = false; $('fQtyLbl').textContent = 'Initial Qty';
+  $('fId').value = '';
+  updateTypeNote();
+  openM('mItem');
+  setTimeout(() => $('fNm').focus(), 120);
+}
+
+function editItem(id) {
+  const i = DB.items.find(x => x.id === id);
+  if (!i) return;
+  $('mItemTitle').textContent = 'Edit Item';
+  $('fNm').value    = i.name;
+  $('fType').value  = i.itemType || 'consumable';
+  $('fCat').value   = i.category;
+  $('fPC').value    = i.partCode;
+  $('fSup').value   = i.supplier;
+  $('fLoc').value   = i.location;
+  $('fQty').value   = i.quantity;
+  $('fQty').disabled = true;
+  $('fQtyLbl').textContent = 'Current Qty (use Add Stock / Issue to change)';
+  $('fMin').value   = i.minQty;
+  $('fBC').value    = i.barcode;
+  $('fId').value    = id;
+  updateTypeNote();
+  openM('mItem');
+}
+
+async function saveItem() {
+  const name = $('fNm').value.trim();
+  if (!name) { $('fNm').classList.add('inv'); showToast('⚠ Item name required', 'error'); return; }
+  $('fNm').classList.remove('inv');
+  const id  = $('fId').value;
+  const btn = $('savBtn');
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
+  const body = {
+    action:   id ? 'updateItem' : 'addItem',
+    name,
+    itemType: $('fType').value,
+    category: $('fCat').value,
+    partCode: $('fPC').value.trim(),
+    supplier: $('fSup').value.trim(),
+    location: $('fLoc').value.trim(),
+    minQty:   Number($('fMin').value) || 0,
+    barcode:  $('fBC').value.trim() || undefined,
+    user:     CFG.user
+  };
+  if (id) body.id = id;
+  else body.quantity = Number($('fQty').value) || 0;
+  Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+  try {
+    const res = await apiPost(body);
+    closeM('mItem');
+    showToast(id ? '✅ Item updated' : `✅ Item added (${res.id || ''})`);
+    $('fQty').disabled = false;
+    await getData();
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+    dlog('saveItem failed', e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Save Item';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VIEW ITEM
+// ═══════════════════════════════════════════════════════════════════
+function viewItem(id) {
+  const i = DB.items.find(x => x.id === id);
+  if (!i) return;
+  activeId = id;
+  const out = i.quantity <= 0, low = !out && i.minQty > 0 && i.quantity <= i.minQty;
+  const stBadge = out ? '<span class="badge bout">⊘ Out of Stock</span>'
+    : low ? '<span class="badge blow">⚠ Low Stock</span>'
+    : '<span class="badge bok">✓ In Stock</span>';
+  const typeBadge = i.itemType === 'returnable'
+    ? '<span class="badge b-returnable">↩ Returnable</span>'
+    : '<span class="badge b-consumable">⚙ Consumable</span>';
+  const actionRow = i.itemType === 'returnable'
+    ? `<button class="btn btn-success btn-sm" style="flex:1" onclick="closeM('mView');openAddSt('${id}')">＋ Add Stock</button>
+       <button class="btn btn-purple btn-sm"  style="flex:1" onclick="closeM('mView');openReturn('${id}')">↩ Return to Vendor</button>`
+    : `<button class="btn btn-success btn-sm" style="flex:1" onclick="closeM('mView');openAddSt('${id}')">＋ Add Stock</button>
+       <button class="btn btn-danger btn-sm"  style="flex:1" onclick="closeM('mView');openUse('${id}')">− Issue Item</button>`;
+
+  $('mViewBody').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:17px;font-weight:700;margin-bottom:4px">${esc(i.name)}</div>
+          <div style="font-size:11px;color:var(--txt3);font-family:var(--fm)">${esc(i.id)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${stBadge}${typeBadge}</div>
+      </div>
+      <div class="fr fr2">
+        <div class="irow"><div class="il">Category</div><div class="iv">${esc(i.category||'—')}</div></div>
+        <div class="irow"><div class="il">Part Code</div><div class="iv" style="font-family:var(--fm);font-size:13px">${esc(i.partCode||'—')}</div></div>
+      </div>
+      <div class="fr fr2">
+        <div class="irow"><div class="il">Supplier</div><div class="iv">${esc(i.supplier||'—')}</div></div>
+        <div class="irow"><div class="il">Location</div><div class="iv">${esc(i.location||'—')}</div></div>
+      </div>
+      <div class="fr fr3">
+        <div class="irow" style="border-left:3px solid ${out?'var(--red)':low?'var(--amber)':'var(--green)'}">
+          <div class="il">Current Qty</div>
+          <div class="iv" style="font-size:24px;font-family:var(--fm);color:${out?'var(--red)':low?'var(--amber)':'var(--green)'}">${i.quantity}</div>
+        </div>
+        <div class="irow"><div class="il">Total Added</div><div class="iv" style="font-family:var(--fm);color:var(--green)">+${i.totalAdded}</div></div>
+        <div class="irow"><div class="il">Total Used</div><div class="iv" style="font-family:var(--fm);color:var(--red)">−${i.totalUsed}</div></div>
+      </div>
+      <div style="display:flex;gap:8px">${actionRow}</div>
+      ${i.updatedAt ? `<div style="font-size:10px;font-family:var(--fm);color:var(--txt3)">Last updated: ${fmtDate(i.updatedAt)}</div>` : ''}
+    </div>`;
+  $('vEditBtn').onclick = () => { closeM('mView'); editItem(id); };
+  openM('mView');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════════════════════════
+function askDel(id) {
+  const i = DB.items.find(x => x.id === id);
+  if (!i) return;
+  $('delName').textContent = i.name;
+  const btn = $('delBtn');
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  $('delBtn').onclick = async () => {
+    const b = $('delBtn'); b.disabled = true; b.textContent = '⏳…';
+    try {
+      await apiPost({ action: 'deleteItem', id, user: CFG.user });
+      closeM('mDel'); showToast('🗑️ Item deleted');
+      await getData();
+    } catch(e) { showToast('❌ ' + e.message, 'error'); }
+    finally { b.disabled = false; b.textContent = '🗑️ Delete'; }
+  };
+  openM('mDel');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ADD STOCK (single item)
+// ═══════════════════════════════════════════════════════════════════
+function openAddSt(id) {
+  const i = DB.items.find(x => x.id === id);
+  if (!i) return;
+  activeId = id;
+  $('asInfo').innerHTML = `<div class="il">Item</div><div class="iv">${esc(i.name)}</div>
+    <div style="font-family:var(--fm);font-size:12px;color:var(--txt3);margin-top:4px">
+      Current Stock: <span style="color:var(--amber);font-weight:700">${i.quantity}</span>
+      · ${esc(i.location||'—')}
+    </div>`;
+  $('asDate').value = todayISO();
+  $('asQty').value  = '1';
+  $('asNote').value = '';
+  $('asSupplier').value = i.supplier || '';
+  openM('mAddSt');
+  setTimeout(() => $('asQty').focus(), 120);
+}
+
+async function submitAddSt() {
+  const qty      = Number($('asQty').value);
+  if (!qty || qty <= 0) { showToast('⚠ Enter a valid quantity', 'error'); return; }
+  const btn      = $('asBtn'); btn.disabled = true; btn.textContent = '⏳…';
+  const txDate   = $('asDate').value || todayISO();
+  const supplier = $('asSupplier').value.trim();
+  const note     = $('asNote').value.trim();
+  const item     = DB.items.find(x => x.id === activeId);
+
+  // ── Build & save receipt FIRST (before API) ──
+  if (item) {
+    const prev = item.quantity;
+    const addRcp = {
+      rno:       'ADD-' + Date.now().toString(36).toUpperCase(),
+      date:      fmtDate(txDate),
+      facility:  CFG.fac,
+      issuedBy:  CFG.user,
+      issuedTo:  supplier || '—',
+      title:     `Stock Added — ${item.name}`,
+      note:      note || '',
+      type:      'add',
+      supplier:  supplier || '',
+      itemName:  item.name,
+      partCode:  item.partCode || '',
+      category:  item.category || '',
+      location:  item.location || '',
+      prevStock: prev,
+      newStock:  prev + qty,
+      items:     [{ name: item.name, qty, partCode: item.partCode || '' }],
+      qty
+    };
+    RECEIPTS.push(addRcp); saveRcps(); curRcp = addRcp;
+    updateItemLocally(activeId, { quantity: prev + qty, totalAdded: (item.totalAdded||0) + qty });
+    closeM('mAddSt');
+    $('mRcpBody').innerHTML = rcpHTML(addRcp);
+    setTimeout(() => openM('mRcp'), 200);
+    showToast(`✅ Added ${qty} units to stock`);
+    paintInv(); renderOv(); updateAlertBadge();
+  }
+
+  // ── Sync to backend (non-blocking) ──
+  try {
+    await apiPost({ action: 'addStock', id: activeId, quantity: qty, supplier, note, transactionDate: txDate, user: CFG.user });
+    getData();
+  } catch(e) { showToast('⚠ Saved locally — sync failed: ' + e.message, 'warn'); }
+  finally { btn.disabled = false; btn.textContent = '📥 Confirm Add'; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ISSUE ITEM (single, consumable only)
+// ═══════════════════════════════════════════════════════════════════
+function openUse(id) {
+  const i = DB.items.find(x => x.id === id);
+  if (!i) return;
+  if (i.itemType === 'returnable') { showToast('↩️ This is a returnable item — use Return to Vendor instead', 'warn'); return; }
+  activeId = id;
+  $('uInfo').innerHTML = `<div class="il">Item</div><div class="iv">${esc(i.name)}</div>
+    <div style="font-family:var(--fm);font-size:12px;color:var(--txt3);margin-top:4px">
+      Available: <span style="color:${i.quantity===0?'var(--red)':'var(--green)'};font-weight:700">${i.quantity}</span>
+      · ${esc(i.location||'—')}
+    </div>`;
+  $('uDate').value  = todayISO();
+  $('uQty').value   = '1';
+  $('uUser').value  = '';
+  $('uNote').value  = '';
+  $('uWarn').style.display = 'none';
+  $('uBtn').disabled = i.quantity <= 0;
+  openM('mUse');
+  setTimeout(() => $('uQty').focus(), 120);
+}
+
+function chkUseQty() {
+  const i = DB.items.find(x => x.id === activeId);
+  if (!i) return;
+  const q = Number($('uQty').value);
+  const warn = q > i.quantity;
+  $('uWarn').style.display = warn ? 'block' : 'none';
+  $('uBtn').disabled = warn || q <= 0;
+}
+
+async function submitUse() {
+  const qty  = Number($('uQty').value);
+  const user = $('uUser').value.trim();
+  const note = $('uNote').value.trim();
+  const txDate = $('uDate').value || todayISO();
+  if (!qty || qty <= 0) { showToast('⚠ Enter a valid quantity', 'error'); return; }
+  if (!user) { showToast('⚠ Technician name required', 'error'); $('uUser').classList.add('inv'); return; }
+  $('uUser').classList.remove('inv');
+  const btn = $('uBtn'); btn.disabled = true; btn.textContent = '⏳…';
+  const item = DB.items.find(x => x.id === activeId);
+  const prev = item ? item.quantity : 0;
+  try {
+    const res = await apiPost({
+      action: 'issueItem', id: activeId, quantity: qty,
+      technician: user, note, transactionDate: txDate, user: CFG.user
+    });
+    const nxt = res.newStock !== undefined ? res.newStock : prev - qty;
+    // Optimistic update
+    updateItemLocally(activeId, { quantity: nxt, totalUsed: (item?.totalUsed||0) + qty });
+    closeM('mUse');
+    showToast(`✅ Issued ${qty} unit${qty > 1 ? 's' : ''} to ${user}`);
+    if (res.isLow) showToast('⚠️ Low stock alert — this item is now below minimum', 'warn');
+    // Build receipt
+    if (item) {
+      const r = buildRcp(item, qty, user, note, prev, nxt, txDate);
+      RECEIPTS.push(r); saveRcps(); curRcp = r;
+      $('mRcpBody').innerHTML = rcpHTML(r);
+      setTimeout(() => openM('mRcp'), 200);
+    }
+    paintInv(); renderOv(); updateAlertBadge();
+    getData();
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '📤 Confirm Issue'; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RETURN TO VENDOR (returnable items only)
+// ═══════════════════════════════════════════════════════════════════
+function openReturn(id) {
+  const i = DB.items.find(x => x.id === id);
+  if (!i) return;
+  if (i.itemType !== 'returnable') { showToast('⚙️ This is a consumable item — use Issue instead', 'warn'); return; }
+  activeId = id;
+  $('rtInfo').innerHTML = `<div class="il">Item</div><div class="iv">${esc(i.name)}</div>
+    <div style="font-family:var(--fm);font-size:12px;color:var(--txt3);margin-top:4px">
+      Available: <span style="color:${i.quantity===0?'var(--red)':'var(--purple)'};font-weight:700">${i.quantity}</span>
+      · ${esc(i.location||'—')}
+    </div>`;
+  $('rtDate').value   = todayISO();
+  $('rtQty').value    = i.quantity.toString() || '1';
+  $('rtVendor').value = i.supplier || '';
+  $('rtNote').value   = '';
+  $('rtWarn').style.display = 'none';
+  $('rtBtn').disabled = i.quantity <= 0;
+  openM('mReturn');
+  setTimeout(() => $('rtQty').focus(), 120);
+}
+
+function chkRetQty() {
+  const i = DB.items.find(x => x.id === activeId);
+  if (!i) return;
+  const q = Number($('rtQty').value);
+  $('rtWarn').style.display = q > i.quantity ? 'block' : 'none';
+  $('rtBtn').disabled = q > i.quantity || q <= 0;
+}
+
+async function submitReturn() {
+  const qty    = Number($('rtQty').value);
+  const vendor = $('rtVendor').value.trim();
+  const note   = $('rtNote').value.trim();
+  const txDate = $('rtDate').value || todayISO();
+  if (!qty || qty <= 0) { showToast('⚠ Enter a valid quantity', 'error'); return; }
+  if (!vendor) { showToast('⚠ Vendor name required', 'error'); $('rtVendor').classList.add('inv'); return; }
+  $('rtVendor').classList.remove('inv');
+  const btn = $('rtBtn'); btn.disabled = true; btn.textContent = '⏳…';
+  const item = DB.items.find(x => x.id === activeId);
+  const prev = item ? item.quantity : 0;
+  try {
+    const res = await apiPost({
+      action: 'returnToVendor', id: activeId, quantity: qty,
+      vendor, note, transactionDate: txDate, user: CFG.user
+    });
+    const nxt = res.newStock !== undefined ? res.newStock : prev - qty;
+    updateItemLocally(activeId, { quantity: nxt, totalUsed: (item?.totalUsed||0) + qty });
+    closeM('mReturn');
+    showToast(`✅ Returned ${qty} unit${qty>1?'s':''} to vendor: ${vendor}`);
+    paintInv(); renderOv(); updateAlertBadge();
+    getData();
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '↩️ Confirm Return'; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BULK ISSUE
+// ═══════════════════════════════════════════════════════════════════
+function initBulkIssue() {
+  if (!$('biDate').value) $('biDate').value = todayISO();
+  if ($('biRows').children.length === 0) addBIRow();
+}
+
+function resetBulkIssue() {
+  $('biDate').value = todayISO();
+  $('biTech').value = '';
+  $('biDesc').value = '';
+  $('biRows').innerHTML = '';
+  addBIRow();
+}
+
+function addBIRow() {
+  const consumables = DB.items.filter(i => i.itemType !== 'returnable' && i.quantity > 0);
+  const opts = consumables.map(i => `<option value="${esc(i.id)}">${esc(i.name)} [${i.quantity} avail]</option>`).join('');
+  const row = document.createElement('div');
+  row.className = 'bulk-row';
+  row.innerHTML = `
+    <select onchange="biRowChange(this)" style="background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12px;outline:none;width:100%">
+      <option value="">— Select item —</option>${opts}
+    </select>
+    <input type="number" min="1" value="1" placeholder="Qty" style="background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12px;outline:none;width:100%;text-align:center"/>
+    <button class="rb" onclick="this.parentElement.remove()" title="Remove">✕</button>`;
+  $('biRows').appendChild(row);
+}
+
+function biRowChange(sel) {
+  const i = DB.items.find(x => x.id === sel.value);
+  if (!i) return;
+  const qtyInput = sel.parentElement.querySelector('input');
+  qtyInput.max = i.quantity;
+}
+
+async function submitBulkIssue() {
+  const txDate = $('biDate').value || todayISO();
+  const tech   = $('biTech').value.trim();
+  const desc   = $('biDesc').value.trim();
+  if (!tech) { showToast('⚠ Technician name required', 'error'); $('biTech').classList.add('inv'); return; }
+  $('biTech').classList.remove('inv');
+
+  const rows = [...$('biRows').querySelectorAll('.bulk-row')];
+  const items = [];
+  for (const row of rows) {
+    const sel = row.querySelector('select');
+    const qin = row.querySelector('input');
+    const id  = sel.value;
+    const qty = Number(qin.value);
+    if (!id) continue;
+    if (!qty || qty <= 0) { showToast('⚠ Invalid quantity in one of the rows', 'error'); return; }
+    const item = DB.items.find(x => x.id === id);
+    if (!item) continue;
+    if (qty > item.quantity) { showToast(`⚠ Not enough stock for "${item.name}" (available: ${item.quantity})`, 'error'); return; }
+    items.push({ id, name: item.name, qty, partCode: item.partCode });
+  }
+  if (!items.length) { showToast('⚠ Add at least one item', 'error'); return; }
+
+  const btn = $('biBtn'); btn.disabled = true; btn.textContent = '⏳ Processing…';
+  try {
+    const res = await apiPost({
+      action: 'bulkIssue',
+      items: items.map(i => ({ id: i.id, quantity: i.qty })),
+      technician: tech, note: desc, transactionDate: txDate, user: CFG.user
+    });
+    // Optimistic update
+    items.forEach(it => {
+      const dbItem = DB.items.find(x => x.id === it.id);
+      if (dbItem) updateItemLocally(it.id, { quantity: dbItem.quantity - it.qty, totalUsed: dbItem.totalUsed + it.qty });
+    });
+    showToast(`✅ Bulk issued ${items.length} item type${items.length>1?'s':''} to ${tech}`);
+    const rcp = buildBulkRcp(items, tech, desc, txDate, res.groupId || '');
+    RECEIPTS.push(rcp); saveRcps(); curRcp = rcp;
+    $('mRcpBody').innerHTML = rcpHTML(rcp);
+    setTimeout(() => openM('mRcp'), 300);
+    resetBulkIssue();
+    renderOv(); updateAlertBadge();
+    getData();
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '📤 Submit Issue'; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BULK ADD STOCK
+// ═══════════════════════════════════════════════════════════════════
+function initBulkAdd() {
+  if (!$('baDate').value) $('baDate').value = todayISO();
+  if ($('baRows').children.length === 0) addBARow();
+}
+
+function resetBulkAdd() {
+  $('baDate').value = todayISO();
+  $('baSupplier').value = '';
+  $('baNote').value = '';
+  $('baRows').innerHTML = '';
+  addBARow();
+}
+
+function addBARow() {
+  const opts = DB.items.map(i => `<option value="${esc(i.id)}">${esc(i.name)} [${i.quantity} now]</option>`).join('');
+  const row = document.createElement('div');
+  row.className = 'bulk-row';
+  row.innerHTML = `
+    <select style="background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12px;outline:none;width:100%">
+      <option value="">— Select item —</option>${opts}
+    </select>
+    <input type="number" min="1" value="1" placeholder="Qty" style="background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12px;outline:none;width:100%;text-align:center"/>
+    <button class="rb" onclick="this.parentElement.remove()" title="Remove">✕</button>`;
+  $('baRows').appendChild(row);
+}
+
+async function submitBulkAdd() {
+  const txDate    = $('baDate').value || todayISO();
+  const supplier  = $('baSupplier').value.trim();
+  const note      = $('baNote').value.trim();
+  const rows      = [...$('baRows').querySelectorAll('.bulk-row')];
+  const items     = [];
+  for (const row of rows) {
+    const sel = row.querySelector('select');
+    const qin = row.querySelector('input');
+    const id  = sel.value;
+    const qty = Number(qin.value);
+    if (!id) continue;
+    if (!qty || qty <= 0) { showToast('⚠ Invalid quantity in one of the rows', 'error'); return; }
+    items.push({ id, qty });
+  }
+  if (!items.length) { showToast('⚠ Add at least one item', 'error'); return; }
+  const btn = $('baBtn'); btn.disabled = true; btn.textContent = '⏳ Processing…';
+
+  // ── Build receipt & update locally FIRST (before API) ──
+  const rcpItems = [];
+  items.forEach(it => {
+    const dbItem = DB.items.find(x => x.id === it.id);
+    if (dbItem) {
+      rcpItems.push({ name: dbItem.name, qty: it.qty, partCode: dbItem.partCode || '' });
+      updateItemLocally(it.id, { quantity: dbItem.quantity + it.qty, totalAdded: (dbItem.totalAdded||0) + it.qty });
+    }
+  });
+  const addRcp = {
+    rno:      'ADD-' + Date.now().toString(36).toUpperCase(),
+    date:     fmtDate(txDate),
+    facility: CFG.fac,
+    issuedBy: CFG.user,
+    issuedTo: supplier || '—',
+    title:    `Stock Added — ${rcpItems.length} item${rcpItems.length>1?'s':''}`,
+    note:     note || '',
+    type:     'add',
+    supplier: supplier || '',
+    items:    rcpItems,
+    qty:      rcpItems.reduce((s, i) => s + i.qty, 0)
+  };
+  RECEIPTS.push(addRcp); saveRcps(); curRcp = addRcp;
+  showToast(`✅ Stock added to ${rcpItems.length} item${rcpItems.length>1?'s':''}. Receipt saved.`);
+  resetBulkAdd();
+  renderOv(); updateAlertBadge();
+
+  // ── Sync to backend (non-blocking) ──
+  try {
+    await apiPost({ action: 'bulkAddStock', items: items.map(i => ({ id: i.id, quantity: i.qty })), supplier, note, transactionDate: txDate, user: CFG.user });
+    getData();
+  } catch(e) { showToast('⚠ Saved locally — sync failed: ' + e.message, 'warn'); }
+  finally { btn.disabled = false; btn.textContent = '📥 Submit Stock Addition'; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TECHNICIANS
+// ═══════════════════════════════════════════════════════════════════
+function renderTechList() {
+  const el = $('techList2');
+  if (!el) return;
+  el.innerHTML = !DB.technicians.length
+    ? '<div style="font-size:12px;color:var(--txt3);padding:8px">No technicians added yet.</div>'
+    : DB.technicians.map(t => `
+      <div class="tech-card">
+        <div>
+          <div class="tech-name">${esc(t.name)}</div>
+          <div class="tech-dept">${esc(t.department||'—')} ${t.phone?' · '+esc(t.phone):''}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-xs btn-secondary" onclick="editTech('${esc(t.id||t.name)}')">✏️</button>
+          <button class="btn btn-xs btn-danger"    onclick="delTech('${esc(t.id||t.name)}')">🗑️</button>
+        </div>
+      </div>`).join('');
+}
+
+function openAddTech() {
+  $('mTechTitle').textContent = 'Add Technician';
+  $('tName').value = ''; $('tDept').value = ''; $('tPhone').value = ''; $('tId').value = '';
+  openM('mTech'); setTimeout(() => $('tName').focus(), 120);
+}
+
+function editTech(id) {
+  const t = DB.technicians.find(x => (x.id||x.name) === id);
+  if (!t) return;
+  $('mTechTitle').textContent = 'Edit Technician';
+  $('tName').value  = t.name  || '';
+  $('tDept').value  = t.department || '';
+  $('tPhone').value = t.phone || '';
+  $('tId').value    = t.id || t.name;
+  openM('mTech');
+}
+
+async function saveTech() {
+  const name = $('tName').value.trim();
+  if (!name) { showToast('⚠ Name required', 'error'); return; }
+  const btn = $('savTechBtn'); btn.disabled = true;
+  try {
+    await apiPost({
+      action: 'saveTechnician', id: $('tId').value || undefined,
+      name, department: $('tDept').value.trim(), phone: $('tPhone').value.trim(), user: CFG.user
+    });
+    closeM('mTech'); showToast('✅ Technician saved');
+    await getData(); renderSettings();
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+async function delTech(id) {
+  if (!confirm('Delete this technician?')) return;
+  try {
+    await apiPost({ action: 'deleteTechnician', id, user: CFG.user });
+    showToast('🗑️ Technician deleted');
+    await getData(); renderSettings();
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════════════════════════════════════
+function updateAlertBadge() {
+  const alerts = DB.items.filter(i => i.quantity <= i.minQty && i.minQty > 0);
+  $('abadge').textContent = alerts.length;
+  $('abadge').style.display = alerts.length ? 'inline' : 'none';
+  $('acnt').textContent = `${alerts.length} item${alerts.length !== 1 ? 's' : ''}`;
+  $('alist').innerHTML = alerts.length
+    ? alerts.slice(0, 15).map(i => `
+        <div class="aitm" onclick="viewItem('${esc(i.id)}');closeAlerts()">
+          <div>
+            <div class="ain">${esc(i.name)}</div>
+            <div class="ail">${esc(i.category||'—')} · ${esc(i.location||'—')}</div>
+          </div>
+          <div class="aiq" style="color:${i.quantity===0?'var(--red)':'var(--amber)'}">${i.quantity}</div>
+        </div>`).join('')
+    : '<div class="aitm"><div class="ain" style="color:var(--green)">✅ All items are OK</div></div>';
+}
+
+let alertOpen = false;
+function toggleAlerts() { alertOpen = !alertOpen; $('adrop').classList.toggle('show', alertOpen); }
+function closeAlerts()  { alertOpen = false; $('adrop').classList.remove('show'); }
+document.addEventListener('click', e => { if (!e.target.closest('.abwrap')) closeAlerts(); });
+
+// ═══════════════════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════════════════
+const isDk  = () => document.documentElement.dataset.theme !== 'light';
+const ctick = () => ({ color: isDk() ? '#4d6280' : '#94a3b8', font: { family: 'IBM Plex Mono', size: 10 } });
+const cgridC= () => ({ color: isDk() ? '#1e2d3d' : '#e2e8f0' });
+function destroyChart(k) { if (charts[k]) { charts[k].destroy(); delete charts[k]; } }
+
+function renderUsageChart() {
+  destroyChart('usage');
+  const c = $('usageChart'); if (!c) return;
+  const days = [], map = {};
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const k = d.toISOString().split('T')[0];
+    days.push(k.slice(5)); map[k] = 0;
+  }
+  DB.transactions.forEach(t => {
+    if (t.type !== 'ISSUE' && t.type !== 'USE') return;
+    const d = String(t.transactionDate || '').split('T')[0];
+    if (map[d] !== undefined) map[d] += t.quantity;
+  });
+  charts.usage = new Chart(c, {
+    type: 'bar',
+    data: { labels: days, datasets: [{ label: 'Units Issued', data: Object.values(map), backgroundColor: 'rgba(245,158,11,.7)', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: ctick(), grid: cgridC() }, y: { ticks: ctick(), grid: cgridC() } } }
+  });
+}
+
+function renderCatChart() {
+  destroyChart('cat');
+  const c = $('catChart'); if (!c) return;
+  const g = {};
+  DB.items.forEach(i => { const k = i.category || 'Uncategorized'; g[k] = (g[k] || 0) + 1; });
+  const labels = Object.keys(g), data = Object.values(g);
+  const CLRS = ['#f59e0b','#3b82f6','#22c55e','#a78bfa','#2dd4bf','#ef4444','#fb923c','#e879f9','#34d399','#60a5fa'];
+  charts.cat = new Chart(c, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: CLRS.slice(0, labels.length), borderWidth: 0, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { position: 'right', labels: { color: isDk() ? '#8fa3bc' : '#64748b', font: { family: 'IBM Plex Mono', size: 10 }, padding: 10, boxWidth: 12 } } } }
+  });
+}
+
+function renderMoChart(data) {
+  destroyChart('mo');
+  const c = $('moChart'); if (!c || !data.length) return;
+  const mm = {};
+  data.forEach(r => { if (!mm[r.month]) mm[r.month] = { u: 0, a: 0 }; mm[r.month].u += Number(r.totalUsed)||0; mm[r.month].a += Number(r.totalAdded)||0; });
+  const months = Object.keys(mm).sort();
+  charts.mo = new Chart(c, {
+    type: 'bar',
+    data: { labels: months, datasets: [
+      { label: 'Used', data: months.map(m => mm[m].u), backgroundColor: 'rgba(239,68,68,.7)', borderRadius: 4 },
+      { label: 'Added', data: months.map(m => mm[m].a), backgroundColor: 'rgba(34,197,94,.7)', borderRadius: 4 }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: isDk() ? '#8fa3bc' : '#64748b', font: { family: 'IBM Plex Mono', size: 10 } } } },
+      scales: { x: { ticks: ctick(), grid: cgridC() }, y: { ticks: ctick(), grid: cgridC() } }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════════
+async function saveSettings() {
+  const url = $('gasUrl').value.trim();
+  if (!url) { showToast('⚠ Enter the GAS URL', 'error'); return; }
+  CFG.url  = url;
+  CFG.user = $('unInput').value.trim()  || 'System';
+  CFG.fac  = $('facInput').value.trim() || 'HVAC Plant';
+  showToast('✅ Settings saved — connecting…', 'info');
+  await getData();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════════════
+function exportInv() {
+  const rows = [
+    ['ID','Name','Item Type','Supplier','Category','Part Code','Location','Min Qty','Quantity','Total Used','Total Added','Status','Barcode'],
+    ...DB.items.map(i => [i.id,i.name,i.itemType,i.supplier,i.category,i.partCode,i.location,i.minQty,i.quantity,i.totalUsed,i.totalAdded,i.status,i.barcode])
+  ];
+  xlsxExport(rows, 'inventory');
+}
+function exportTx() {
+  const rows = [
+    ['ID','Group ID','Item ID','Item Name','Type','Qty','Prev Stock','New Stock','Technician','Note','Transaction Date','Created Date'],
+    ...DB.transactions.map(t => [t.id,t.groupId,t.itemId,t.itemName,t.type,t.quantity,t.previousStock,t.newStock,t.technician,t.note,t.transactionDate,t.createdDate])
+  ];
+  xlsxExport(rows, 'transactions');
+}
+function exportRep() {
+  const rows = [
+    ['Month','Item ID','Item Name','Total Used','Total Added'],
+    ...DB.report.map(r => [r.month,r.itemId,r.itemName,r.totalUsed,r.totalAdded])
+  ];
+  xlsxExport(rows, 'monthly_report');
+}
+function xlsxExport(rows, name) {
+  const ws = XLSX.utils.aoa_to_sheet(rows), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  XLSX.writeFile(wb, `${name}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════════════
+function toggleTheme() {
+  const dk = document.documentElement.dataset.theme !== 'light';
+  document.documentElement.dataset.theme = dk ? 'light' : 'dark';
+  $('tbtn').textContent = dk ? '☀️' : '🌙';
+  localStorage.setItem('theme', dk ? 'light' : 'dark');
+  Object.values(charts).forEach(c => c.destroy()); charts = {};
+  renderPage();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MODALS / TOAST / SIDEBAR
+// ═══════════════════════════════════════════════════════════════════
+function openM(id)  { document.getElementById(id)?.classList.add('open'); }
+function closeM(id) {
+  document.getElementById(id)?.classList.remove('open');
+  if (id === 'mItem') $('fQty').disabled = false;
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.mover.open').forEach(m => m.classList.remove('open'));
+});
+document.querySelectorAll('.mover').forEach(m => m.addEventListener('click', e => {
+  if (e.target === m) m.classList.remove('open');
+}));
+
+let toastT;
+function showToast(msg, type = 'success') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { t.className = ''; }, 4000);
+}
+
+let sbMini = false;
+function toggleSB() { sbMini = !sbMini; $('sidebar').classList.toggle('mini', sbMini); $('main').classList.toggle('mini', sbMini); localStorage.setItem('sbm', sbMini ? '1' : ''); }
+function openSB()   { $('sidebar').classList.add('mobile-open'); $('sover').classList.add('show'); }
+function closeSB()  { $('sidebar').classList.remove('mobile-open'); $('sover').classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const todayISO = () => new Date().toISOString().split('T')[0];
+function fmtDate(s) {
+  if (!s) return '—';
+  try {
+    const d = new Date(s);
+    if (isNaN(d)) return s;
+    return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) +
+           ' ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12: true });
+  } catch(_) { return s; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+async function init() {
+  // Theme
+  const theme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.dataset.theme = theme;
+  $('tbtn').textContent = theme === 'light' ? '☀️' : '🌙';
+
+  // Sidebar collapse state
+  if (localStorage.getItem('sbm') === '1') {
+    sbMini = true;
+    $('sidebar').classList.add('mini');
+    $('main').classList.add('mini');
+  }
+
+  // Debug
+  DEBUG = localStorage.getItem('debug') === '1';
+  if (DEBUG) { $('dbg').classList.add('open'); $('dbgBtn').textContent = 'Disable'; }
+
+  // Receipts
+  loadRcps(); saveRcps();
+
+  // Populate settings fields
+  $('gasUrl').value   = CFG.url;
+  $('unInput').value  = CFG.user;
+  $('facInput').value = CFG.fac;
+
+  // Item type note
+  $('fType').addEventListener('change', updateTypeNote);
+  updateTypeNote();
+
+  dlog('StoreKeeper Pro v8.0 — init');
+
+  if (CFG.url) {
+    $('ltxt').textContent = 'Loading inventory from Google Sheets…';
+    await getData();
+  } else {
+    setStat('offline');
+    nav('settings');
+    showToast('👋 Welcome to StoreKeeper Pro! Paste your GAS URL in Settings to connect.', 'info');
+  }
+
+  // Auto-sync every 5 minutes
+  setInterval(() => {
+    if (CFG.url && !document.hidden) getData();
+  }, 5 * 60 * 1000);
+
+  setTimeout(() => $('loader').classList.add('hidden'), 600);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MONTHLY REPORT
+// ═══════════════════════════════════════════════════════════════════
+
+function generateMonthlyReport() {
+  const monthVal = $('mrMonth').value;
+  if (!monthVal) { showToast('Please select a month to generate the report', 'error'); return; }
+
+  const dept      = ($('mrDept').value || '').trim() || 'Maintenance';
+  const plant     = CFG.fac || 'HVAC Plant';
+  const [yr, mo]  = monthVal.split('-');
+  const monthName = new Date(yr, mo - 1, 1).toLocaleString('en-GB', { month: 'long' });
+  const fullMonth = `${monthName} ${yr}`;
+  const genDate   = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' });
+
+  // Transactions this month
+  const txns        = DB.transactions.filter(t => String(t.transactionDate || t.createdDate || '').startsWith(monthVal));
+  const addedTxns   = txns.filter(t => t.type === 'ADD' || t.type === 'ADD_STOCK' || t.type === 'BULK_ADD');
+  const issuedTxns  = txns.filter(t => t.type === 'ISSUE' || t.type === 'USE' || t.type === 'BULK_ISSUE');
+  const totalQtyAdded  = addedTxns.reduce((s, t) => s + t.quantity, 0);
+  const totalQtyIssued = issuedTxns.reduce((s, t) => s + t.quantity, 0);
+
+  // Inventory health buckets
+  const totalItems   = DB.items.length;
+  const normalItems  = DB.items.filter(i => i.quantity > 0 && (i.minQty === 0 || i.quantity > i.minQty)).length;
+  const lowItems     = DB.items.filter(i => i.quantity > 0 && i.minQty > 0 && i.quantity <= i.minQty && i.quantity > 0);
+  // Action helpers
+  function catLabel(t) {
+    const item = DB.items.find(i => i.id === t.itemId);
+    return item ? (item.category || '—') : '—';
+  }
+  function actionLabel(type) {
+    const map = { ADD:'Added', ADD_STOCK:'Added', BULK_ADD:'Bulk Added', ISSUE:'Issued', USE:'Issued', BULK_ISSUE:'Bulk Issued', RETURN_TO_VENDOR:'Returned' };
+    return map[type] || type;
+  }
+  function actionColor(type) {
+    if (type === 'ADD' || type === 'ADD_STOCK' || type === 'BULK_ADD') return '#16a34a';
+    if (type === 'RETURN_TO_VENDOR') return '#7c3aed';
+    return '#dc2626';
+  }
+
+  // Transaction rows (all txns this month)
+  const txRows = txns.length === 0
+    ? `<tr><td colspan="6" style="text-align:center;padding:18px;color:#888;font-style:italic">No transactions recorded for this month</td></tr>`
+    : txns.map((t, idx) => {
+        const dateStr = t.transactionDate ? new Date(t.transactionDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short'}) : '—';
+        return `<tr style="background:${idx%2===0?'#fff':'#f9fafb'}">
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;white-space:nowrap">${dateStr}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:600">${t.itemName || t.itemId || '—'}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:10px;color:#555">${catLabel(t)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700;color:${actionColor(t.type)}">${actionLabel(t.type)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700;text-align:center">${t.quantity}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:10px;color:#444">${t.technician || '—'}</td>
+        </tr>`;
+      }).join('');
+
+  // Repair entries for the month
+  const repMonth  = DB.repairs.filter(r => String(r.dateSent||r.createdAt||'').startsWith(monthVal));
+  const repActive = DB.repairs.filter(r => r.status==='Sent'||r.status==='Under Repair').length;
+
+  function repStatusColor(s) {
+    return s==='Sent'?'#3b82f6': s==='Under Repair'?'#d97706': s==='Repaired'?'#16a34a': '#8b5cf6';
+  }
+  function repStatusBg(s) {
+    return s==='Sent'?'#eff6ff': s==='Under Repair'?'#fffbeb': s==='Repaired'?'#f0fdf4': '#f5f3ff';
+  }
+
+  const repRows = DB.repairs.length === 0
+    ? `<tr><td colspan="7" style="text-align:center;padding:14px;color:#888;font-style:italic">No repair entries found</td></tr>`
+    : DB.repairs.map(r => {
+        const sc = repStatusColor(r.status);
+        const sb = repStatusBg(r.status);
+        return `<tr>
+          <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:10px;color:#555">${r.dateSent ? r.dateSent.slice(0,10) : '—'}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:10px;color:#888">${r.receiptNo||'—'}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:11px;font-weight:700;color:#1e293b">${r.machineName||'—'}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#374151">${r.componentName||'—'}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:10px;color:#555">${r.sentTo||'—'}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:10px;text-align:center">
+            <span style="background:${sb};color:${sc};font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px">${r.status}</span>
+          </td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:10px;color:#555;text-align:center">${r.expectedReturn ? r.expectedReturn.slice(0,10) : '—'}</td>
+        </tr>`;
+      }).join('');
+
+  const html = `
+  <div style="font-family:'Arial',sans-serif;padding:36px 44px;color:#111;background:#fff;min-height:297mm;position:relative">
+
+    <!-- HEADER -->
+    <div style="text-align:center;margin-bottom:4px">
+      <div style="font-size:9px;letter-spacing:4px;color:#888;text-transform:uppercase;margin-bottom:6px">Plant Spare Parts Inventory Management System</div>
+      <div style="font-size:24px;font-weight:900;letter-spacing:1px;color:#111;line-height:1.1">SPARE PARTS INVENTORY</div>
+      <div style="font-size:13px;font-weight:700;color:#f59e0b;letter-spacing:3px;margin-top:3px">MONTHLY SUMMARY REPORT</div>
+    </div>
+    <div style="border-top:3px solid #f59e0b;border-bottom:1px solid #e5e7eb;margin:14px 0;padding:12px 0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div><span style="font-size:9px;color:#888;display:block;text-transform:uppercase;letter-spacing:1px">Plant / Facility</span><span style="font-size:13px;font-weight:700">${plant}</span></div>
+      <div><span style="font-size:9px;color:#888;display:block;text-transform:uppercase;letter-spacing:1px">Department</span><span style="font-size:13px;font-weight:700">${dept}</span></div>
+      <div><span style="font-size:9px;color:#888;display:block;text-transform:uppercase;letter-spacing:1px">Report Month</span><span style="font-size:13px;font-weight:700">${fullMonth}</span></div>
+      <div><span style="font-size:9px;color:#888;display:block;text-transform:uppercase;letter-spacing:1px">Generated On</span><span style="font-size:13px;font-weight:700">${genDate}</span></div>
+    </div>
+
+    <!-- INVENTORY HEALTH SUMMARY -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#888;text-transform:uppercase;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid #f0f0f0">▸ Inventory Health Summary</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+        ${[
+          { label:'Total Items',    val: totalItems,         color:'#3b82f6', bg:'#eff6ff'  },
+          { label:'Normal Stock',   val: normalItems,        color:'#16a34a', bg:'#f0fdf4'  },
+          { label:'Low Stock',      val: lowItems.length,    color:'#d97706', bg:'#fffbeb'  },
+          { label:'Critical / Out', val: DB.items.filter(i=>i.quantity<=0).length, color: DB.items.filter(i=>i.quantity<=0).length > 0 ? '#dc2626':'#16a34a', bg: DB.items.filter(i=>i.quantity<=0).length > 0 ? '#fef2f2':'#f0fdf4' }
+        ].map(c => `
+        <div style="background:${c.bg};border:1px solid ${c.color}22;border-radius:8px;padding:14px 10px;text-align:center">
+          <div style="font-size:28px;font-weight:900;color:${c.color};line-height:1">${c.val}</div>
+          <div style="font-size:9px;color:#555;margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">${c.label}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- TRANSACTION SUMMARY -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#888;text-transform:uppercase;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid #f0f0f0">▸ Transactions This Month — ${fullMonth}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:14px">
+        ${[
+          { label:'Total Transactions', val: txns.length,       color:'#1e293b' },
+          { label:'Items Issued (Qty)', val: totalQtyIssued,     color:'#dc2626' },
+          { label:'Items Added (Qty)',  val: totalQtyAdded,      color:'#16a34a' },
+          { label:'Active Repairs',     val: repActive,          color:'#d97706' }
+        ].map((s,i) => `
+        <div style="text-align:center;padding:14px 6px;${i<3?'border-right:1px solid #e5e7eb;':''}">
+          <div style="font-size:26px;font-weight:900;color:${s.color}">${s.val}</div>
+          <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-top:3px">${s.label}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- TRANSACTION TABLE -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#888;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f0f0f0">▸ Transaction Log — ${fullMonth}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead>
+          <tr style="background:#1e293b;color:#fff">
+            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">DATE</th>
+            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">ITEM NAME</th>
+            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">CATEGORY</th>
+            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">ACTION</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700">QTY</th>
+            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700">TECHNICIAN</th>
+          </tr>
+        </thead>
+        <tbody>${txRows}</tbody>
+      </table>
+    </div>
+
+    <!-- REPAIR REGISTER SECTION -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#888;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f0f0f0">
+        ▸ Repair Register — All Entries
+        ${repActive > 0 ? `<span style="background:#fffbeb;color:#d97706;font-size:9px;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:700">${repActive} active</span>` : ''}
+        <span style="background:#f0f9ff;color:#0284c7;font-size:9px;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:700">${DB.repairs.length} total</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead>
+          <tr style="background:#1e293b;color:#fff">
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700">DATE SENT</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700">RECEIPT NO</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700">MACHINE</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700">COMPONENT</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700">SENT TO</th>
+            <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:700">STATUS</th>
+            <th style="padding:7px 10px;text-align:center;font-size:10px;font-weight:700">EXP. RETURN</th>
+          </tr>
+        </thead>
+        <tbody>${repRows}</tbody>
+      </table>
+    </div>
+
+    <!-- CLOSING SUMMARY BAR -->
+    <div style="border-top:2px solid #e5e7eb;border-bottom:2px solid #e5e7eb;padding:14px 0;margin-bottom:20px;display:grid;grid-template-columns:repeat(4,1fr)">
+      ${[
+        { label:'Transactions This Month', val: txns.length },
+        { label:'Total Qty Issued',        val: totalQtyIssued },
+        { label:'Total Qty Added',         val: totalQtyAdded },
+        { label:'Total Inventory Items',   val: totalItems }
+      ].map((s,i) => `
+      <div style="text-align:center;${i<3?'border-right:1px solid #e5e7eb;':''}padding:0 8px">
+        <div style="font-size:20px;font-weight:900;color:#111">${s.val}</div>
+        <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">${s.label}</div>
+      </div>`).join('')}
+    </div>
+
+    <!-- SIGNATURES -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:16px">
+      <div>
+        <div style="border-bottom:1.5px solid #333;height:40px;margin-bottom:8px"></div>
+        <div style="font-size:11px;font-weight:700">HVAC Supervisor Signature</div>
+        <div style="font-size:10px;color:#888;margin-top:2px">Name &amp; Date</div>
+      </div>
+      <div>
+        <div style="border-bottom:1.5px solid #333;height:40px;margin-bottom:8px"></div>
+        <div style="font-size:11px;font-weight:700">HVAC Incharge Signature</div>
+        <div style="font-size:10px;color:#888;margin-top:2px">Name &amp; Date</div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="position:absolute;bottom:20px;left:44px;right:44px;border-top:1px solid #e5e7eb;padding-top:8px;display:flex;justify-content:space-between">
+      <span style="font-size:9px;color:#aaa">Page 1 | StoreKeeper Pro v9 — Inventory Dashboard</span>
+      <span style="font-size:9px;color:#aaa">${plant} · ${fullMonth}</span>
+    </div>
+  </div>`;
+
+  $('mrContent').innerHTML = html;
+  $('mrOverlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  $('mrOverlay').dataset.month = monthName;
+  $('mrOverlay').dataset.year  = yr;
+}
+
+function closeMR() {
+  $('mrOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function downloadMRPdf() {
+  const el   = $('mrContent');
+  const mo   = $('mrOverlay').dataset.month  || 'Report';
+  const yr   = $('mrOverlay').dataset.year   || '';
+  const name = `Inventory_Report_${mo}_${yr}.pdf`;
+
+  const opt = {
+    margin:      [8, 8, 8, 8],
+    filename:    name,
+    image:       { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  showToast('⏳ Generating PDF…', 'info');
+  html2pdf().set(opt).from(el).save().then(() => {
+    showToast(`✅ PDF saved as ${name}`, 'ok');
+  });
+}
+
+function printMR() {
+  const content = $('mrContent').innerHTML;
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><title>Monthly Report</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    body { margin:0; font-family: Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @media print { body { margin:0; } }
+  </style></head><body>${content}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 400);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+
+init();</script>
 </body>
 </html>
